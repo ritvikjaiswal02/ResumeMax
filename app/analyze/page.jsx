@@ -366,6 +366,14 @@ export default function AnalyzePage() {
   const [coverLetterError, setCoverLetterError]   = useState('')
   const [coverLetterCopied, setCoverLetterCopied] = useState(false)
 
+  const [outreachMode, setOutreachMode]           = useState('email')
+  const [outreachResult, setOutreachResult]       = useState(null)
+  const [outreachLoading, setOutreachLoading]     = useState(false)
+  const [outreachError, setOutreachError]         = useState('')
+  const [outreachCopied, setOutreachCopied]       = useState(false)
+  const [recruiterName, setRecruiterName]         = useState('')
+  const [companyName, setCompanyName]             = useState('')
+
   const [previousResult, setPreviousResult]       = useState(null)
   const [comparisonSummary, setComparisonSummary] = useState(null)
   const [reanalyzing, setReanalyzing]             = useState(false)
@@ -506,6 +514,89 @@ export default function AnalyzePage() {
     navigator.clipboard.writeText(coverLetter)
     setCoverLetterCopied(true)
     setTimeout(() => setCoverLetterCopied(false), 2000)
+  }
+
+  const handleGenerateOutreach = async () => {
+    if (!session) { setShowAuthModal(true); return }
+    if (usage?.plan !== 'pro') { setShowPaywall(true); return }
+    setOutreachError(''); setOutreachResult(null); setOutreachLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append('resume', resumeFile)
+      fd.append('jobDescription', jobDescription)
+      fd.append('userName', user?.email?.split('@')[0] || '')
+      fd.append('recruiterName', recruiterName)
+      fd.append('companyName', companyName)
+      const res  = await fetch('/api/cold-outreach', {
+        method: 'POST', body: fd,
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) setOutreachError(data.message || 'Generation failed. Please try again.')
+      else setOutreachResult(data)
+    } catch {
+      setOutreachError('Could not reach the server. Please try again.')
+    } finally {
+      setOutreachLoading(false)
+    }
+  }
+
+  const handleCopyOutreach = () => {
+    if (!outreachResult) return
+    const text = outreachMode === 'email'
+      ? `Subject: ${outreachResult.coldEmail.subject}\n\n${outreachResult.coldEmail.body}`
+      : outreachResult.linkedInDm
+    navigator.clipboard.writeText(text)
+    setOutreachCopied(true)
+    setTimeout(() => setOutreachCopied(false), 2000)
+  }
+
+  const [coverLetterDownloading, setCoverLetterDownloading] = useState(false)
+
+  const handleDownloadCoverLetter = async () => {
+    if (!coverLetter || coverLetterDownloading) return
+    setCoverLetterDownloading(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+
+      const marginX     = 25
+      const marginTop   = 30
+      const marginBot   = 25
+      const pageWidth   = doc.internal.pageSize.getWidth()
+      const pageHeight  = doc.internal.pageSize.getHeight()
+      const usableWidth = pageWidth - marginX * 2
+      const lineH       = 6.5   // mm per line at 11pt
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(11)
+
+      // Split preserving blank lines (paragraph breaks)
+      const paragraphs = coverLetter.split(/\n/)
+      const lines = []
+      for (const para of paragraphs) {
+        if (para.trim() === '') {
+          lines.push('')
+        } else {
+          const wrapped = doc.splitTextToSize(para, usableWidth)
+          lines.push(...wrapped)
+        }
+      }
+
+      let y = marginTop
+      for (const line of lines) {
+        if (y + lineH > pageHeight - marginBot) {
+          doc.addPage()
+          y = marginTop
+        }
+        if (line !== '') doc.text(line, marginX, y)
+        y += lineH
+      }
+
+      doc.save('cover_letter.pdf')
+    } finally {
+      setCoverLetterDownloading(false)
+    }
   }
 
   const handleReanalyze = async () => {
@@ -908,19 +999,50 @@ export default function AnalyzePage() {
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                        cover_letter.txt
+                        cover_letter.pdf
                       </span>
                     </div>
-                    <button
-                      onClick={handleCopyCoverLetter}
-                      className="h-7 px-3 text-xs font-semibold rounded-lg transition-all"
-                      style={
-                        coverLetterCopied
-                          ? { background: 'rgba(74,222,128,0.12)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.3)' }
-                          : { background: 'var(--surface-3)', color: 'var(--foreground)', border: '1px solid var(--border)' }
-                      }>
-                      {coverLetterCopied ? '✓ Copied' : 'Copy'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyCoverLetter}
+                        className="h-7 px-3 text-xs font-semibold rounded-lg transition-all"
+                        style={
+                          coverLetterCopied
+                            ? { background: 'rgba(74,222,128,0.12)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.3)' }
+                            : { background: 'var(--surface-3)', color: 'var(--foreground)', border: '1px solid var(--border)' }
+                        }>
+                        {coverLetterCopied ? '✓ Copied' : 'Copy'}
+                      </button>
+
+                      <button
+                        onClick={handleDownloadCoverLetter}
+                        disabled={coverLetterDownloading}
+                        className="h-7 px-3 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5"
+                        style={{
+                          background: coverLetterDownloading ? 'var(--surface-3)' : 'rgba(233,185,76,0.12)',
+                          color: coverLetterDownloading ? 'var(--dim)' : 'var(--gold)',
+                          border: '1px solid rgba(233,185,76,0.25)',
+                          opacity: coverLetterDownloading ? 0.7 : 1,
+                        }}>
+                        {coverLetterDownloading ? (
+                          <>
+                            <svg className="spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3"
+                                strokeDasharray="14 42" strokeLinecap="round" />
+                            </svg>
+                            Exporting…
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                            </svg>
+                            PDF
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Letter body */}
@@ -929,6 +1051,209 @@ export default function AnalyzePage() {
                       style={{ color: 'var(--foreground)', fontFamily: 'inherit' }}>
                       {coverLetter}
                     </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Cold Outreach ── */}
+            <div className="mt-12">
+              {/* Header row */}
+              <div className="flex items-start justify-between mb-5 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 rounded-full shrink-0" style={{ background: 'var(--gold)' }} />
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="text-lg font-bold tracking-tight">Cold Outreach</h2>
+                      {usage?.plan === 'pro' ? (
+                        <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
+                          style={{ color: 'var(--success)', background: 'rgba(74,222,128,0.08)', borderColor: 'rgba(74,222,128,0.22)' }}>
+                          Pro
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
+                          style={{ color: 'var(--gold)', background: 'rgba(233,185,76,0.08)', borderColor: 'rgba(233,185,76,0.22)' }}>
+                          Pro only
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      Personalized cold email or LinkedIn DM for this role
+                    </p>
+                  </div>
+                </div>
+
+                {/* Generate button */}
+                {!outreachLoading && (
+                  <button
+                    onClick={handleGenerateOutreach}
+                    disabled={!result}
+                    className="shrink-0 h-8 px-4 text-xs font-bold rounded-lg transition-all"
+                    style={{
+                      background: 'var(--gold)',
+                      color: 'var(--background)',
+                      opacity: !result ? 0.4 : 1,
+                    }}>
+                    {outreachResult ? 'Regenerate' : usage?.plan === 'pro' ? 'Generate →' : 'Upgrade to Generate →'}
+                  </button>
+                )}
+              </div>
+
+              {/* Optional inputs */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-widest mb-1.5"
+                    style={{ color: 'var(--dim)' }}>
+                    Recruiter Name
+                  </label>
+                  <input
+                    type="text"
+                    value={recruiterName}
+                    onChange={e => setRecruiterName(e.target.value)}
+                    placeholder="e.g. Sarah (optional)"
+                    className="w-full h-8 px-3 text-xs rounded-lg outline-none transition-all"
+                    style={{
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-widest mb-1.5"
+                    style={{ color: 'var(--dim)' }}>
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    placeholder="e.g. Google (optional)"
+                    className="w-full h-8 px-3 text-xs rounded-lg outline-none transition-all"
+                    style={{
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Mode tabs */}
+              <div className="flex items-center gap-1 mb-4">
+                {[['email', 'Cold Email'], ['dm', 'LinkedIn DM']].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setOutreachMode(mode)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
+                    style={outreachMode === mode ? {
+                      background: 'rgba(233,185,76,0.12)',
+                      color: 'var(--gold)',
+                      border: '1px solid rgba(233,185,76,0.3)',
+                    } : {
+                      background: 'transparent',
+                      color: 'var(--dim)',
+                      border: '1px solid transparent',
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Loading */}
+              {outreachLoading && (
+                <div className="flex items-center gap-3 px-5 py-4 rounded-xl"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                  <svg className="spin shrink-0 w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="var(--surface-3)" strokeWidth="3" />
+                    <circle cx="12" cy="12" r="9" stroke="var(--gold)" strokeWidth="3"
+                      strokeDasharray="14 42" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                    Writing your outreach message…
+                  </span>
+                </div>
+              )}
+
+              {/* Error */}
+              {outreachError && (
+                <div className="px-4 py-3 rounded-xl text-sm"
+                  style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: 'var(--danger)' }}>
+                  {outreachError}
+                </div>
+              )}
+
+              {/* Output */}
+              {outreachResult && (
+                <div className="rounded-xl overflow-hidden anim-fade-up"
+                  style={{ border: '1px solid var(--border)' }}>
+                  {/* Toolbar */}
+                  <div className="flex items-center justify-between px-5 py-3"
+                    style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-2">
+                      {outreachMode === 'email' ? (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                          style={{ color: 'var(--gold)' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                          style={{ color: 'var(--gold)' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      )}
+                      <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                        {outreachMode === 'email' ? 'cold_email.txt' : 'linkedin_dm.txt'}
+                      </span>
+                      {outreachMode === 'dm' && (
+                        <span className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded"
+                          style={{
+                            background: outreachResult.linkedInDm.length > 280
+                              ? 'rgba(248,113,113,0.12)'
+                              : 'rgba(74,222,128,0.1)',
+                            color: outreachResult.linkedInDm.length > 280
+                              ? 'var(--danger)'
+                              : 'var(--success)',
+                          }}>
+                          {outreachResult.linkedInDm.length} chars
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleCopyOutreach}
+                      className="h-7 px-3 text-xs font-semibold rounded-lg transition-all"
+                      style={
+                        outreachCopied
+                          ? { background: 'rgba(74,222,128,0.12)', color: 'var(--success)', border: '1px solid rgba(74,222,128,0.3)' }
+                          : { background: 'var(--surface-3)', color: 'var(--foreground)', border: '1px solid var(--border)' }
+                      }>
+                      {outreachCopied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-7 py-6" style={{ background: 'var(--card)' }}>
+                    {outreachMode === 'email' ? (
+                      <>
+                        <p className="text-xs font-semibold mb-3 pb-3"
+                          style={{ color: 'var(--dim)', borderBottom: '1px solid var(--border)' }}>
+                          Subject: <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>
+                            {outreachResult.coldEmail.subject}
+                          </span>
+                        </p>
+                        <p className="text-sm leading-[1.85] whitespace-pre-wrap"
+                          style={{ color: 'var(--foreground)' }}>
+                          {outreachResult.coldEmail.body}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm leading-[1.85] whitespace-pre-wrap"
+                        style={{ color: 'var(--foreground)' }}>
+                        {outreachResult.linkedInDm}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
