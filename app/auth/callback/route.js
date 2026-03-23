@@ -30,6 +30,8 @@ export async function GET(request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) return response
+
+    console.error('[auth/callback] exchangeCodeForSession failed:', JSON.stringify(error))
   }
 
   return NextResponse.redirect(`${origin}/analyze?auth_error=true`)
