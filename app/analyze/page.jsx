@@ -374,6 +374,10 @@ export default function AnalyzePage() {
   const [recruiterName, setRecruiterName]         = useState('')
   const [companyName, setCompanyName]             = useState('')
 
+  const [interviewQuestions, setInterviewQuestions] = useState(null)
+  const [interviewLoading, setInterviewLoading]     = useState(false)
+  const [interviewError, setInterviewError]         = useState('')
+
   const [previousResult, setPreviousResult]       = useState(null)
   const [comparisonSummary, setComparisonSummary] = useState(null)
   const [reanalyzing, setReanalyzing]             = useState(false)
@@ -549,6 +553,28 @@ export default function AnalyzePage() {
     navigator.clipboard.writeText(text)
     setOutreachCopied(true)
     setTimeout(() => setOutreachCopied(false), 2000)
+  }
+
+  const handleGenerateInterviewPrep = async () => {
+    if (!session) { setShowAuthModal(true); return }
+    if (usage?.plan !== 'pro') { setShowPaywall(true); return }
+    setInterviewError(''); setInterviewQuestions(null); setInterviewLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append('resume', resumeFile)
+      fd.append('jobDescription', jobDescription)
+      const res  = await fetch('/api/interview-prep', {
+        method: 'POST', body: fd,
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) setInterviewError(data.message || 'Generation failed. Please try again.')
+      else setInterviewQuestions(data.questions)
+    } catch {
+      setInterviewError('Could not reach the server. Please try again.')
+    } finally {
+      setInterviewLoading(false)
+    }
   }
 
   const [coverLetterDownloading, setCoverLetterDownloading] = useState(false)
@@ -1255,6 +1281,93 @@ export default function AnalyzePage() {
                       </p>
                     )}
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Interview Prep ── */}
+            <div className="mt-10 no-print" style={{ borderLeft: '2px solid var(--gold)', paddingLeft: '1.25rem' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-base font-bold" style={{ color: 'var(--foreground)' }}>Interview Prep</h3>
+                    <span className="text-[0.6rem] font-black px-1.5 py-0.5 rounded tracking-widest"
+                      style={{ background: 'rgba(233,185,76,0.15)', color: 'var(--gold)', border: '1px solid rgba(233,185,76,0.3)' }}>
+                      PRO
+                    </span>
+                  </div>
+                  <p className="text-xs" style={{ color: 'var(--dim)' }}>
+                    Practice questions tailored to this role, with tips from your own resume
+                  </p>
+                </div>
+                {!interviewLoading && (
+                  <button
+                    onClick={handleGenerateInterviewPrep}
+                    disabled={!result}
+                    className="shrink-0 h-8 px-4 text-xs font-bold rounded-lg transition-all"
+                    style={{
+                      background: result ? 'var(--gold)' : 'var(--surface-3)',
+                      color: result ? '#0d0d11' : 'var(--dim)',
+                      cursor: result ? 'pointer' : 'not-allowed',
+                    }}>
+                    {interviewQuestions ? 'Regenerate →' : 'Generate Questions →'}
+                  </button>
+                )}
+              </div>
+
+              {/* Loading */}
+              {interviewLoading && (
+                <div className="flex items-center gap-3 py-4">
+                  <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
+                    style={{ borderColor: 'var(--gold)', borderTopColor: 'transparent' }} />
+                  <span className="text-sm" style={{ color: 'var(--dim)' }}>Generating your questions…</span>
+                </div>
+              )}
+
+              {/* Error */}
+              {interviewError && (
+                <div className="px-4 py-3 rounded-xl text-sm"
+                  style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: 'var(--danger)' }}>
+                  {interviewError}
+                </div>
+              )}
+
+              {/* Question Cards */}
+              {interviewQuestions && (
+                <div className="flex flex-col gap-3 anim-fade-up">
+                  {interviewQuestions.map((q, i) => {
+                    const catColor = q.category === 'Behavioral'
+                      ? { bg: 'rgba(233,185,76,0.12)', color: 'var(--gold)', border: 'rgba(233,185,76,0.25)' }
+                      : q.category === 'Technical'
+                      ? { bg: 'rgba(99,179,237,0.1)', color: '#63b3ed', border: 'rgba(99,179,237,0.2)' }
+                      : { bg: 'rgba(251,191,36,0.08)', color: 'var(--warn)', border: 'rgba(251,191,36,0.2)' }
+                    return (
+                      <div key={i} className="rounded-xl p-4"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        {/* Category + number */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[0.6rem] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: catColor.bg, color: catColor.color, border: `1px solid ${catColor.border}` }}>
+                            {q.category}
+                          </span>
+                          <span className="text-[0.65rem] font-semibold" style={{ color: 'var(--dim)' }}>Q{i + 1}</span>
+                        </div>
+                        {/* Question */}
+                        <p className="text-sm font-medium mb-3" style={{ color: 'var(--foreground)', lineHeight: '1.6' }}>
+                          {q.question}
+                        </p>
+                        {/* Tip */}
+                        <div className="flex gap-2 px-3 py-2.5 rounded-lg"
+                          style={{ background: 'rgba(233,185,76,0.06)', border: '1px solid rgba(233,185,76,0.15)' }}>
+                          <span className="text-sm shrink-0 mt-px">💡</span>
+                          <p className="text-xs leading-relaxed" style={{ color: 'var(--dim)' }}>
+                            {q.tip}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
