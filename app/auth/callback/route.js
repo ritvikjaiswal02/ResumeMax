@@ -31,8 +31,10 @@ export async function GET(request) {
 
     if (!error) return response
 
+    const msg = encodeURIComponent(error.message || error.code || JSON.stringify(error))
     console.error('[auth/callback] exchangeCodeForSession failed:', JSON.stringify(error))
+    return NextResponse.redirect(`${origin}/analyze?auth_error=true&err=${msg}`)
   }
 
-  return NextResponse.redirect(`${origin}/analyze?auth_error=true`)
+  return NextResponse.redirect(`${origin}/analyze?auth_error=true&err=no_code`)
 }
