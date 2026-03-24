@@ -51,6 +51,7 @@ export default function PricingPage() {
   const [activeLoading, setActiveLoading] = useState(null)
   const [isPro, setIsPro]               = useState(false)
   const [successPlan, setSuccessPlan]   = useState(null)
+  const [authToast, setAuthToast]       = useState(false)
 
   useEffect(() => {
     if (!session) return
@@ -61,7 +62,14 @@ export default function PricingPage() {
   }, [session])
 
   const handleBuy = async (planId) => {
-    if (!session) { router.push('/analyze'); return }
+    if (!session) {
+      setAuthToast(true)
+      setTimeout(() => {
+        setAuthToast(false)
+        router.push('/analyze')
+      }, 2000)
+      return
+    }
     setActiveLoading(planId)
     try {
       const res = await fetch('/api/razorpay/create-order', {
@@ -101,6 +109,24 @@ export default function PricingPage() {
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+      {/* ── Auth toast ── */}
+      {authToast && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 20px', borderRadius: 12,
+          background: 'rgba(25,31,49,0.97)', border: '1px solid rgba(255,193,116,0.35)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          fontSize: 14, fontWeight: 600, color: '#ffc174',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffc174" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" />
+          </svg>
+          Sign in first — redirecting you now…
+        </div>
+      )}
 
       {/* ── Background blobs (exact match to reference) ── */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
