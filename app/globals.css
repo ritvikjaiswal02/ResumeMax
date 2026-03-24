@@ -3,6 +3,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Pricing page utilities ── */
+.glass-card {
+  background: rgba(25, 31, 49, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.amber-glow {
+  box-shadow: 0 0 40px rgba(255, 193, 116, 0.18), 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.font-headline {
+  font-family: 'Manrope', sans-serif;
+}
+
 /* ── Override shadcn CSS vars with our dark amber design ── */
 /* Unlayered :root wins over @layer base — locks the dark theme */
 :root {

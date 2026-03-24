@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,10 +9,73 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Legacy shadcn tokens (keep existing components working)
         background: "var(--background)",
         foreground: "var(--foreground)",
+
+        // Reference design palette
+        "surface":                  "#0c1324",
+        "surface-dim":              "#0c1324",
+        "surface-bright":           "#33394c",
+        "surface-container":        "#191f31",
+        "surface-container-low":    "#151b2d",
+        "surface-container-high":   "#23293c",
+        "surface-container-lowest": "#070d1f",
+        "surface-container-highest":"#2e3447",
+        "surface-variant":          "#2e3447",
+        "on-surface":               "#dce1fb",
+        "on-surface-variant":       "#d8c3ad",
+        "inverse-surface":          "#dce1fb",
+        "inverse-on-surface":       "#2a3043",
+        "primary":                  "#ffc174",
+        "primary-fixed":            "#ffddb8",
+        "primary-fixed-dim":        "#ffb95f",
+        "primary-container":        "#f59e0b",
+        "on-primary":               "#472a00",
+        "on-primary-container":     "#613b00",
+        "on-primary-fixed":         "#2a1700",
+        "on-primary-fixed-variant": "#653e00",
+        "inverse-primary":          "#855300",
+        "secondary":                "#4edea3",
+        "secondary-fixed":          "#6ffbbe",
+        "secondary-fixed-dim":      "#4edea3",
+        "secondary-container":      "#00a572",
+        "on-secondary":             "#003824",
+        "on-secondary-container":   "#00311f",
+        "on-secondary-fixed":       "#002113",
+        "on-secondary-fixed-variant":"#005236",
+        "tertiary":                 "#8fd5ff",
+        "tertiary-fixed":           "#c5e7ff",
+        "tertiary-fixed-dim":       "#7fd0ff",
+        "tertiary-container":       "#1abdff",
+        "on-tertiary":              "#00344a",
+        "on-tertiary-container":    "#004966",
+        "on-tertiary-fixed":        "#001e2d",
+        "on-tertiary-fixed-variant":"#004c6a",
+        "outline":                  "#a08e7a",
+        "outline-variant":          "#534434",
+        "error":                    "#ffb4ab",
+        "error-container":          "#93000a",
+        "on-error":                 "#690005",
+        "on-error-container":       "#ffdad6",
+        "surface-tint":             "#ffb95f",
+      },
+      fontFamily: {
+        "headline": ["Manrope", "sans-serif"],
+        "body":     ["Inter", "sans-serif"],
+        "label":    ["Inter", "sans-serif"],
+      },
+      borderRadius: {
+        DEFAULT: "0.125rem",
+        lg:      "0.25rem",
+        xl:      "0.5rem",
+        "2xl":   "0.75rem",
+        full:    "9999px",
+      },
+      boxShadow: {
+        "amber-glow": "0 0 40px rgba(255,193,116,0.18), 0 8px 32px rgba(0,0,0,0.5)",
       },
     },
   },
   plugins: [],
-};
+}
