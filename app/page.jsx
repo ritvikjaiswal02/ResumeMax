@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import Reveal from '@/components/Reveal'
+import HomeNavbar from '@/components/HomeNavbar'
 
 export default function LandingPage({ searchParams }) {
   if (searchParams?.error_code) {
@@ -15,25 +16,7 @@ export default function LandingPage({ searchParams }) {
     <div className="min-h-screen" style={{ background: 'var(--background)' }}>
 
       {/* ── Navbar ── */}
-      <header className="sticky top-0 z-50 border-b border-border/60"
-        style={{ background: 'rgba(13,13,17,0.8)', backdropFilter: 'blur(16px)' }}>
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-display text-xl font-bold tracking-tight">Resume<span style={{ color: 'var(--gold)' }}>Lens</span></span>
-          <nav className="flex items-center gap-3">
-            <Link href="/pricing" className="text-sm font-medium transition-colors hover:opacity-80"
-              style={{ color: 'var(--muted-foreground)' }}>
-              Pricing
-            </Link>
-            <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-              <Link href="/login">Sign In</Link>
-            </Button>
-            <Button size="sm" asChild className="font-bold"
-              style={{ background: 'var(--gold)', color: '#0d0d11' }}>
-              <Link href="/login">Get Started Free</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <HomeNavbar />
 
       {/* ── Hero ── */}
       <section className="grid-bg relative overflow-hidden px-6 pt-24 pb-28">
