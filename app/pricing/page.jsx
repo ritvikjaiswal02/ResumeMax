@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import Reveal from '@/components/Reveal'
 
 const PASSES = [
   {
@@ -51,8 +52,6 @@ export default function PricingPage() {
   const [activeLoading, setActiveLoading] = useState(null)
   const [isPro, setIsPro]               = useState(false)
   const [successPlan, setSuccessPlan]   = useState(null)
-  const [authToast, setAuthToast]       = useState(false)
-
   useEffect(() => {
     if (!session) return
     fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
@@ -62,14 +61,7 @@ export default function PricingPage() {
   }, [session])
 
   const handleBuy = async (planId) => {
-    if (!session) {
-      setAuthToast(true)
-      setTimeout(() => {
-        setAuthToast(false)
-        router.push('/analyze')
-      }, 2000)
-      return
-    }
+    if (!session) { router.push('/login'); return }
     setActiveLoading(planId)
     try {
       const res = await fetch('/api/razorpay/create-order', {
@@ -110,24 +102,6 @@ export default function PricingPage() {
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      {/* ── Auth toast ── */}
-      {authToast && (
-        <div style={{
-          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 20px', borderRadius: 12,
-          background: 'rgba(25,31,49,0.97)', border: '1px solid rgba(255,193,116,0.35)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-          fontSize: 14, fontWeight: 600, color: '#ffc174',
-          animation: 'fadeIn 0.2s ease',
-        }}>
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffc174" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" />
-          </svg>
-          Sign in first — redirecting you now…
-        </div>
-      )}
-
       {/* ── Background blobs (exact match to reference) ── */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
@@ -136,20 +110,19 @@ export default function PricingPage() {
 
       {/* ── Navbar ── */}
       <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-surface-container-low">
-        <Link href="/" className="font-headline text-xl font-bold tracking-tighter text-primary no-underline">
-          ResumeLens AI
+        <Link href="/" className="no-underline">
+          <span className="font-headline text-xl font-bold tracking-tighter text-primary">ResumeLens</span>
         </Link>
         <div className="hidden md:flex items-center gap-8 font-label text-sm">
-          <Link href="/analyze"  className="text-on-surface-variant hover:text-on-surface transition-colors no-underline">Dashboard</Link>
+          <Link href="/"         className="text-on-surface-variant hover:text-on-surface transition-colors no-underline">Home</Link>
           <Link href="/pricing"  className="text-primary border-b-2 border-primary pb-0.5 no-underline">Pricing</Link>
-          <Link href="/analyze"  className="text-on-surface-variant hover:text-on-surface transition-colors no-underline">Analysis</Link>
         </div>
         <div className="flex items-center gap-4">
           <Link
-            href="/analyze"
+            href={user ? '/analyze' : '/login'}
             className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-5 py-2 rounded-xl font-bold text-sm tracking-tight hover:opacity-90 transition-all duration-150 no-underline"
           >
-            {user ? 'Dashboard →' : 'Upload Resume'}
+            {user ? 'Dashboard →' : 'Sign In'}
           </Link>
         </div>
       </nav>
@@ -171,14 +144,14 @@ export default function PricingPage() {
         {/* ── Pricing Grid ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center md:items-center">
 
-          {PASSES.map((pass) => {
+          {PASSES.map((pass, index) => {
             const isActive  = isPro || successPlan === pass.id
             const isLoading = activeLoading === pass.id
 
             if (pass.highlight) {
               return (
+                <Reveal key={pass.id} delay={index * 0.2}>
                 <div
-                  key={pass.id}
                   className="relative glass-card rounded-2xl border-2 border-primary amber-glow flex flex-col md:scale-105 z-10 shadow-2xl overflow-hidden min-h-[680px]"
                 >
                   {/* Top amber shimmer line */}
@@ -236,13 +209,14 @@ export default function PricingPage() {
                     )}
                   </div>
                 </div>
+                </Reveal>
               )
             }
 
             // Side cards
             return (
+              <Reveal key={pass.id} delay={index * 0.2}>
               <div
-                key={pass.id}
                 className="glass-card rounded-2xl border border-outline-variant/15 flex flex-col hover:border-outline-variant/35 transition-all duration-300 overflow-hidden min-h-[560px]"
               >
                 <div className="px-9 pt-10 pb-10 flex flex-col flex-grow">
@@ -294,6 +268,7 @@ export default function PricingPage() {
                   )}
                 </div>
               </div>
+              </Reveal>
             )
           })}
         </div>

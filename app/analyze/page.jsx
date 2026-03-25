@@ -260,7 +260,7 @@ function AuthModal({ onClose, signInWithGoogle, signInWithEmail }) {
           className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-base"
           style={{ color: 'var(--dim)' }}>✕</button>
         <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--foreground)' }}>Sign in to ResumeLens</h2>
-        <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>Get 2 free analyses per month</p>
+        <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>Get 5 free analyses per month</p>
 
         <button onClick={signInWithGoogle}
           className="w-full flex items-center justify-center gap-3 h-11 rounded-xl text-sm font-semibold transition-all mb-4"
@@ -324,7 +324,7 @@ function PaywallModal({ onClose, onUpgrade, upgradeLoading }) {
         </div>
         <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--foreground)' }}>Monthly limit reached</h2>
         <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
-          You&apos;ve used your 2 free analyses this month.<br />
+          You&apos;ve used your 5 free analyses this month.<br />
           Upgrade to Pro for unlimited analyses — ₹499/month.
         </p>
         <button onClick={onUpgrade} disabled={upgradeLoading}
@@ -387,7 +387,8 @@ export default function AnalyzePage() {
   const [reanalyzeJdFocused, setReanalyzeJdFocused] = useState(false)
 
   useEffect(() => {
-    setAuthError(new URLSearchParams(window.location.search).get('auth_error') === 'true')
+    const params = new URLSearchParams(window.location.search)
+    setAuthError(params.get('auth_error') === 'true')
     // Prefill JD if navigated from history "Re-analyze this role"
     const prefill = sessionStorage.getItem('rl_prefill_jd')
     if (prefill) {
@@ -696,7 +697,7 @@ export default function AnalyzePage() {
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const atLimit    = usage?.plan === 'free' && usage?.analyses_used >= 2
+  const atLimit    = usage?.plan === 'free' && usage?.analyses_used >= 5
   const bothReady  = !!resumeFile && jobDescription.trim().length > 0
   const canAnalyze = bothReady && !loading && !atLimit
 
@@ -732,9 +733,8 @@ export default function AnalyzePage() {
         style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="text-lg font-extrabold tracking-tight"
-              style={{ color: 'var(--gold)' }}>
-              ResumeLens
+            <Link href="/">
+              <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--foreground)' }}>Resume<span style={{ color: 'var(--gold)' }}>Lens</span></span>
             </Link>
             {user && (
               <Link href="/history"
@@ -762,7 +762,7 @@ export default function AnalyzePage() {
                         ? { color: 'var(--warn)', background: 'rgba(251,146,60,0.08)', borderColor: 'rgba(251,146,60,0.22)' }
                         : { color: 'var(--danger)', background: 'rgba(248,113,113,0.08)', borderColor: 'rgba(248,113,113,0.22)' }
                     }>
-                    {usage.analyses_used} / 2 analyses
+                    {usage.analyses_used} / 5 analyses
                   </Badge>
                 )
               )}

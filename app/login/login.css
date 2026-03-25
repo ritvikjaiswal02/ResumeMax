@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+.login-root {
+  font-family: 'DM Sans', sans-serif;
+}
+.login-input:focus {
+  outline: none;
+  border-color: rgba(233,185,76,0.4) !important;
+}
+.login-google:hover {
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.15) !important;
+}
+.login-cta:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.login-cta:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.login-link:hover {
+  color: #e9b94c !important;
+}
+@media (max-width: 860px) {
+  .login-left { display: none !important; }
+  .login-form-side { flex: 1 !important; }
+}

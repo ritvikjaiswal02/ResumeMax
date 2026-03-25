@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import Reveal from '@/components/Reveal'
 
 export default function LandingPage({ searchParams }) {
   if (searchParams?.error_code) {
@@ -17,20 +18,18 @@ export default function LandingPage({ searchParams }) {
       <header className="sticky top-0 z-50 border-b border-border/60"
         style={{ background: 'rgba(13,13,17,0.8)', backdropFilter: 'blur(16px)' }}>
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-display text-xl font-bold tracking-tight">
-            Resume<span style={{ color: 'var(--gold)' }}>Lens</span>
-          </span>
+          <span className="font-display text-xl font-bold tracking-tight">Resume<span style={{ color: 'var(--gold)' }}>Lens</span></span>
           <nav className="flex items-center gap-3">
             <Link href="/pricing" className="text-sm font-medium transition-colors hover:opacity-80"
               style={{ color: 'var(--muted-foreground)' }}>
               Pricing
             </Link>
             <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-              <Link href="/analyze">Sign In</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
             <Button size="sm" asChild className="font-bold"
               style={{ background: 'var(--gold)', color: '#0d0d11' }}>
-              <Link href="/analyze">Get Started Free</Link>
+              <Link href="/login">Get Started Free</Link>
             </Button>
           </nav>
         </div>
@@ -60,16 +59,20 @@ export default function LandingPage({ searchParams }) {
             </em>
           </h1>
 
-          <p className="anim-fade-up d-200 text-muted-foreground mb-10 mx-auto max-w-lg leading-relaxed"
+          <p className="anim-fade-up d-200 text-muted-foreground mb-5 mx-auto max-w-lg leading-relaxed"
             style={{ fontSize: '1.0625rem' }}>
             Paste any job description. Upload your resume. Get your ATS score,
             missing keywords, and AI-rewritten bullets in under 30 seconds.
+          </p>
+          <p className="anim-fade-up d-250 text-sm font-semibold tracking-wide mb-8"
+            style={{ color: 'var(--gold)' }}>
+            ✦ 5 free analyses every month — no credit card needed
           </p>
 
           <div className="anim-fade-up d-300 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild className="font-bold text-[0.9375rem] px-7 h-12"
               style={{ background: 'var(--gold)', color: '#0d0d11', boxShadow: '0 0 32px rgba(233,185,76,0.3)' }}>
-              <Link href="/analyze">Analyze My Resume →</Link>
+              <Link href="/login">Analyze My Resume →</Link>
             </Button>
             <Button variant="outline" size="lg" asChild
               className="text-muted-foreground border-border h-12 px-6 hover:text-foreground">
@@ -133,6 +136,7 @@ export default function LandingPage({ searchParams }) {
             {[
               {
                 step: '01', title: 'Upload your resume',
+
                 desc: 'Drop your PDF. Works with any format — including Canva and design-tool exports. Max 5MB.',
                 icon: <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 3v5a1 1 0 001 1h5M9 13h6M9 17h4" /></svg>,
               },
@@ -146,21 +150,23 @@ export default function LandingPage({ searchParams }) {
                 desc: 'Instant ATS score, every missing keyword, and AI bullet rewrites in the job\'s own language.',
                 icon: <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
               },
-            ].map(({ step, title, desc, icon }) => (
-              <Card key={step} className="relative border-border/70 overflow-hidden group hover:border-[var(--gold)]/30 transition-colors duration-300">
-                <CardContent className="p-7">
-                  <div className="absolute top-5 right-5 font-display font-black select-none leading-none"
-                    style={{ fontSize: '3.5rem', color: 'var(--border)', lineHeight: 1 }}>
-                    {step}
-                  </div>
-                  <div className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center mb-5"
-                    style={{ background: 'rgba(233,185,76,0.1)', color: 'var(--gold)' }}>
-                    {icon}
-                  </div>
-                  <h3 className="text-[0.9375rem] font-semibold mb-2.5">{title}</h3>
-                  <p className="text-[0.84rem] text-muted-foreground leading-relaxed">{desc}</p>
-                </CardContent>
-              </Card>
+            ].map(({ step, title, desc, icon }, i) => (
+              <Reveal key={step} delay={i * 0.15}>
+                <Card className="relative border-border/70 overflow-hidden group hover:border-[var(--gold)]/30 transition-colors duration-300">
+                  <CardContent className="p-7">
+                    <div className="absolute top-5 right-5 font-display font-black select-none leading-none"
+                      style={{ fontSize: '3.5rem', color: 'var(--border)', lineHeight: 1 }}>
+                      {step}
+                    </div>
+                    <div className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center mb-5"
+                      style={{ background: 'rgba(233,185,76,0.1)', color: 'var(--gold)' }}>
+                      {icon}
+                    </div>
+                    <h3 className="text-[0.9375rem] font-semibold mb-2.5">{title}</h3>
+                    <p className="text-[0.84rem] text-muted-foreground leading-relaxed">{desc}</p>
+                  </CardContent>
+                </Card>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -200,43 +206,100 @@ export default function LandingPage({ searchParams }) {
                 desc: 'AI-rewritten versions of your weakest bullets using the job\'s own language. Copy and paste directly.',
                 icon: <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
               },
-            ].map(({ gold, goldDim, title, desc, icon }) => (
-              <Card key={title} className="border-border/70 hover:border-border transition-colors duration-300">
-                <CardContent className="p-7">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
-                    style={{ background: goldDim, color: gold }}>
-                    {icon}
-                  </div>
-                  <h3 className="text-[0.9375rem] font-semibold mb-2.5">{title}</h3>
-                  <p className="text-[0.84rem] text-muted-foreground leading-relaxed">{desc}</p>
-                </CardContent>
-              </Card>
+            ].map(({ gold, goldDim, title, desc, icon }, i) => (
+              <Reveal key={title} delay={i * 0.15}>
+                <Card className="border-border/70 hover:border-border transition-colors duration-300">
+                  <CardContent className="p-7">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
+                      style={{ background: goldDim, color: gold }}>
+                      {icon}
+                    </div>
+                    <h3 className="text-[0.9375rem] font-semibold mb-2.5">{title}</h3>
+                    <p className="text-[0.84rem] text-muted-foreground leading-relaxed">{desc}</p>
+                  </CardContent>
+                </Card>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <Separator className="bg-border/60" />
+      {/* ── Pro Features ── */}
+      <section className="px-6 py-24" style={{ background: 'var(--card)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <Badge variant="outline"
+              className="border-[var(--gold)]/30 text-[var(--gold)] bg-[var(--gold)]/7 px-3 py-1 text-[0.7rem] tracking-[0.14em] uppercase font-bold rounded-full mb-5">
+              Pro Pass
+            </Badge>
+            <h2 className="font-display mb-4"
+              style={{ fontSize: 'clamp(1.8rem, 4vw, 2.75rem)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.12 }}>
+              Go beyond scoring.{' '}
+              <span style={{ color: 'var(--gold)' }}>Land the interview.</span>
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto text-[0.9375rem] leading-relaxed">
+              Generate cover letters, prep for interviews, and reach out to recruiters — all tailored to your resume and the exact job.
+            </p>
+          </div>
 
-      {/* ── CTA ── */}
-      <section className="px-6 py-24 text-center" style={{ background: 'var(--card)' }}>
-        <div className="max-w-xl mx-auto">
-          <h2 className="font-display mb-5"
-            style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4rem)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-            More callbacks<br />start here.
-          </h2>
-          <p className="text-muted-foreground mb-10 text-[0.9375rem] leading-relaxed">
-            Free to start. 2 analyses per month. No credit card required.
-          </p>
-          <Button size="lg" asChild className="font-bold h-12 px-8 text-[0.9375rem]"
-            style={{ background: 'var(--gold)', color: '#0d0d11', boxShadow: '0 0 40px rgba(233,185,76,0.3)' }}>
-            <Link href="/analyze">Analyze My Resume — Free →</Link>
-          </Button>
-          <p className="mt-5 text-[0.78rem] text-muted-foreground/50">
-            Joined by 500+ job seekers getting more callbacks
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {[
+              {
+                color: 'var(--gold)', bg: 'rgba(233,185,76,0.1)',
+                title: 'AI Cover Letter Generator',
+                desc: 'A tailored cover letter that maps your experience to the job description. Download as PDF, ready to attach.',
+                icon: <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V9a2 2 0 012-2h2a2 2 0 012 2v9a2 2 0 01-2 2h-2z"/></svg>,
+              },
+              {
+                color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',
+                title: 'Interview Prep (STAR Method)',
+                desc: '6–8 personalized questions based on your actual resume — behavioral, technical, and situational — with actionable tips.',
+                icon: <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+              },
+              {
+                color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',
+                title: 'Cold Outreach Generator',
+                desc: 'AI-written LinkedIn DMs and cold emails personalized to the recruiter and role. Copy, paste, send.',
+                icon: <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
+              },
+              {
+                color: 'var(--success)', bg: 'rgba(74,222,128,0.1)',
+                title: 'Resume & JD History',
+                desc: 'Every analysis saved automatically. Revisit past scores, track improvements, and compare across applications.',
+                icon: <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+              },
+            ].map(({ color, bg, title, desc, icon }, i) => (
+              <Reveal key={title} delay={i * 0.12}>
+                <Card className="border-border/70 hover:border-[var(--gold)]/25 transition-colors duration-300">
+                  <CardContent className="p-7">
+                    <div className="flex items-start gap-5">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: bg, color }}>
+                        {icon}
+                      </div>
+                      <div>
+                        <h3 className="text-[0.9375rem] font-semibold mb-2">{title}</h3>
+                        <p className="text-[0.84rem] text-muted-foreground leading-relaxed">{desc}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Reveal>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Button size="lg" asChild className="font-bold h-12 px-8 text-[0.9375rem]"
+              style={{ background: 'var(--gold)', color: '#0d0d11' }}>
+              <Link href="/pricing">View Pricing →</Link>
+            </Button>
+            <p className="mt-4 text-[0.78rem] text-muted-foreground/50">
+              Starts at ₹99 · One-time payment · No subscriptions
+            </p>
+          </div>
         </div>
       </section>
+
 
       {/* ── Footer ── */}
       <footer className="py-6 text-center text-[0.8rem] border-t border-border/40 text-muted-foreground/40">

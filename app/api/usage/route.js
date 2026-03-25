@@ -38,6 +38,6 @@ export async function GET(request) {
     plan:            effectivePlan,
     plan_id:         profile.plan_id,
     plan_expires_at: profile.plan_expires_at,
-    limit:           2,
+    limit:           5,
   })
 }
