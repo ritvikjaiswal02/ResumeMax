@@ -15,6 +15,13 @@ dist/
 
 # OS
 .DS_Store
+Thumbs.db
+
+# Personal files
+*.pdf
+*.xlsx
+*.xls
+*.~lock.*
 
 # Claude
 .claude/
