@@ -11,11 +11,11 @@ export async function GET(request) {
 
   let { data: profile } = await supabase
     .from('profiles')
-    .select('analyses_used, plan, plan_id, plan_expires_at')
+    .select('analyses_used, plan, plan_id, plan_expires_at, free_pro_used')
     .eq('id', user.id)
     .single()
 
-  if (!profile) profile = { analyses_used: 0, plan: 'free', plan_id: null, plan_expires_at: null }
+  if (!profile) profile = { analyses_used: 0, plan: 'free', plan_id: null, plan_expires_at: null, free_pro_used: false }
 
   /* ── Auto-expire: if plan_expires_at is in the past, downgrade to free ── */
   let effectivePlan = profile.plan
@@ -38,6 +38,7 @@ export async function GET(request) {
     plan:            effectivePlan,
     plan_id:         profile.plan_id,
     plan_expires_at: profile.plan_expires_at,
+    free_pro_used:   profile.free_pro_used ?? false,
     limit:           5,
   })
 }
