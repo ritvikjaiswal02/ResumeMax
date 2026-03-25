@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { getUsage } from '@/lib/api'
 import AnalysisResults from '@/components/AnalysisResults'
@@ -304,7 +305,7 @@ function AuthModal({ onClose, signInWithGoogle, signInWithEmail }) {
 }
 
 /* ─── Paywall Modal ─── */
-function PaywallModal({ onClose, onUpgrade, upgradeLoading }) {
+function PaywallModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: 'rgba(0,0,0,0.72)' }}
@@ -325,13 +326,13 @@ function PaywallModal({ onClose, onUpgrade, upgradeLoading }) {
         <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--foreground)' }}>Monthly limit reached</h2>
         <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
           You&apos;ve used your 5 free analyses this month.<br />
-          Upgrade to Pro for unlimited analyses — ₹499/month.
+          Grab a Pro Pass to keep going — starts at ₹99.
         </p>
-        <button onClick={onUpgrade} disabled={upgradeLoading}
-          className="w-full h-11 text-sm font-bold rounded-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all mb-3"
+        <Link href="/pricing"
+          className="block w-full h-11 text-sm font-bold rounded-xl transition-all mb-3 flex items-center justify-center"
           style={{ background: 'var(--gold)', color: 'var(--background)' }}>
-          {upgradeLoading ? 'Opening payment…' : 'Upgrade to Pro — ₹499/month'}
-        </button>
+          View Plans →
+        </Link>
         <button onClick={onClose} className="text-sm" style={{ color: 'var(--dim)' }}>
           Come back next month
         </button>
@@ -345,6 +346,7 @@ function PaywallModal({ onClose, onUpgrade, upgradeLoading }) {
 ═══════════════════════════════════════════════════════════ */
 export default function AnalyzePage() {
   const topRef = useRef(null)
+  const router = useRouter()
   const { user, session, loading: authLoading, signOut, signInWithGoogle, signInWithEmail } = useAuth()
 
   const [authError, setAuthError]           = useState(false)
@@ -358,8 +360,6 @@ export default function AnalyzePage() {
   const [showAuthModal, setShowAuthModal]   = useState(false)
   const [showPaywall, setShowPaywall]       = useState(false)
   const [usage, setUsage]                   = useState(null)
-  const [upgradeLoading, setUpgradeLoading] = useState(false)
-  const [upgradeSuccess, setUpgradeSuccess] = useState(false)
 
   const [coverLetter, setCoverLetter]             = useState(null)
   const [coverLetterLoading, setCoverLetterLoading] = useState(false)
@@ -402,60 +402,9 @@ export default function AnalyzePage() {
     getUsage(session.access_token).then(setUsage)
   }, [session])
 
-  useEffect(() => {
-    const s = document.createElement('script')
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.async = true
-    document.body.appendChild(s)
-    return () => document.body.removeChild(s)
-  }, [])
-
-  const handleUpgrade = async () => {
-    if (!session) return
-    setUpgradeLoading(true)
-    try {
-      const orderRes  = await fetch('/api/razorpay/create-order', {
-        method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const orderData = await orderRes.json()
-      if (!orderRes.ok) throw new Error(orderData.error)
-
-      const rzp = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount, currency: orderData.currency,
-        name: 'ResumeLens', description: 'Pro Plan — Unlimited Analyses',
-        order_id: orderData.order_id, prefill: { email: user?.email || '' },
-        theme: { color: '#e9b94c' },
-        handler: async (response) => {
-          const verifyRes = await fetch('/api/razorpay/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-            body: JSON.stringify({
-              razorpay_order_id:   response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature:  response.razorpay_signature,
-            }),
-          })
-          const v = await verifyRes.json()
-          if (v.success) {
-            setShowPaywall(false)
-            getUsage(session.access_token).then(setUsage)
-            setUpgradeSuccess(true)
-            setTimeout(() => setUpgradeSuccess(false), 4000)
-          } else {
-            alert('Payment verification failed. Please contact support.')
-          }
-          setUpgradeLoading(false)
-        },
-        modal: { ondismiss: () => setUpgradeLoading(false) },
-      })
-      rzp.on('payment.failed', (r) => {
-        alert('Payment failed: ' + r.error.description); setUpgradeLoading(false)
-      })
-      rzp.open()
-    } catch {
-      alert('Something went wrong. Please try again.')
-      setUpgradeLoading(false)
-    }
+  const markFreeTrialUsed = () => {
+    fetch('/api/use-free-trial', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } })
+    setUsage(prev => prev ? { ...prev, free_pro_used: true } : prev)
   }
 
   const handleAnalyze = async () => {
@@ -488,8 +437,8 @@ export default function AnalyzePage() {
 
   const handleGenerateCoverLetter = async () => {
     if (!session) { setShowAuthModal(true); return }
-    // Pro gate — show paywall if free
-    if (usage?.plan !== 'pro') { setShowPaywall(true); return }
+    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    if (!canUsePro) { router.push('/pricing'); return }
 
     setCoverLetterError(''); setCoverLetter(null); setCoverLetterLoading(true)
     try {
@@ -506,6 +455,7 @@ export default function AnalyzePage() {
         setCoverLetterError(data.message || 'Generation failed. Please try again.')
       } else {
         setCoverLetter(data.coverLetter)
+        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
       }
     } catch {
       setCoverLetterError('Could not reach the server. Please try again.')
@@ -523,7 +473,8 @@ export default function AnalyzePage() {
 
   const handleGenerateOutreach = async () => {
     if (!session) { setShowAuthModal(true); return }
-    if (usage?.plan !== 'pro') { setShowPaywall(true); return }
+    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    if (!canUsePro) { router.push('/pricing'); return }
     setOutreachError(''); setOutreachResult(null); setOutreachLoading(true)
     try {
       const fd = new FormData()
@@ -538,7 +489,10 @@ export default function AnalyzePage() {
       })
       const data = await res.json()
       if (!res.ok) setOutreachError(data.message || 'Generation failed. Please try again.')
-      else setOutreachResult(data)
+      else {
+        setOutreachResult(data)
+        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
+      }
     } catch {
       setOutreachError('Could not reach the server. Please try again.')
     } finally {
@@ -558,7 +512,8 @@ export default function AnalyzePage() {
 
   const handleGenerateInterviewPrep = async () => {
     if (!session) { setShowAuthModal(true); return }
-    if (usage?.plan !== 'pro') { setShowPaywall(true); return }
+    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    if (!canUsePro) { router.push('/pricing'); return }
     setInterviewError(''); setInterviewQuestions(null); setInterviewLoading(true)
     try {
       const fd = new FormData()
@@ -570,7 +525,10 @@ export default function AnalyzePage() {
       })
       const data = await res.json()
       if (!res.ok) setInterviewError(data.message || 'Generation failed. Please try again.')
-      else setInterviewQuestions(data.questions)
+      else {
+        setInterviewQuestions(data.questions)
+        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
+      }
     } catch {
       setInterviewError('Could not reach the server. Please try again.')
     } finally {
@@ -711,21 +669,13 @@ export default function AnalyzePage() {
           Sign-in failed — your session may have expired. Please try again.
         </div>
       )}
-      {upgradeSuccess && (
-        <div className="fixed top-0 inset-x-0 z-50 text-sm text-center py-2 px-4 font-medium"
-          style={{ background: 'var(--success)', color: '#0d0d11' }}>
-          You&apos;re now on Pro. Unlimited analyses unlocked. ✓
-        </div>
-      )}
-
       {/* ── Modals ── */}
       {showAuthModal && (
         <AuthModal onClose={() => setShowAuthModal(false)}
           signInWithGoogle={signInWithGoogle} signInWithEmail={signInWithEmail} />
       )}
       {showPaywall && (
-        <PaywallModal onClose={() => setShowPaywall(false)}
-          onUpgrade={handleUpgrade} upgradeLoading={upgradeLoading} />
+        <PaywallModal onClose={() => setShowPaywall(false)} />
       )}
 
       {/* ── Navbar ── */}
@@ -963,7 +913,7 @@ export default function AnalyzePage() {
                       ) : (
                         <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
                           style={{ color: 'var(--gold)', background: 'rgba(233,185,76,0.08)', borderColor: 'rgba(233,185,76,0.22)' }}>
-                          Pro only
+                          {usage?.free_pro_used === false ? '1 free use' : 'Pro only'}
                         </Badge>
                       )}
                     </div>
@@ -983,7 +933,7 @@ export default function AnalyzePage() {
                       color: 'var(--background)',
                       opacity: coverLetterLoading ? 0.6 : 1,
                     }}>
-                    {coverLetter ? 'Regenerate' : usage?.plan === 'pro' ? 'Generate →' : 'Upgrade to Generate →'}
+                    {coverLetter ? 'Regenerate' : usage?.plan === 'pro' ? 'Generate →' : usage?.free_pro_used === false ? 'Generate Free →' : 'Unlock Pro →'}
                   </button>
                 )}
               </div>
@@ -1099,7 +1049,7 @@ export default function AnalyzePage() {
                       ) : (
                         <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
                           style={{ color: 'var(--gold)', background: 'rgba(233,185,76,0.08)', borderColor: 'rgba(233,185,76,0.22)' }}>
-                          Pro only
+                          {usage?.free_pro_used === false ? '1 free use' : 'Pro only'}
                         </Badge>
                       )}
                     </div>
@@ -1120,7 +1070,7 @@ export default function AnalyzePage() {
                       color: 'var(--background)',
                       opacity: !result ? 0.4 : 1,
                     }}>
-                    {outreachResult ? 'Regenerate' : usage?.plan === 'pro' ? 'Generate →' : 'Upgrade to Generate →'}
+                    {outreachResult ? 'Regenerate' : usage?.plan === 'pro' ? 'Generate →' : usage?.free_pro_used === false ? 'Generate Free →' : 'Unlock Pro →'}
                   </button>
                 )}
               </div>
