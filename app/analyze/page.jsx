@@ -928,6 +928,41 @@ export default function AnalyzePage() {
               reanalyzing={reanalyzing}
             />
 
+            {/* ── Free Pro Trial Banner ── */}
+            {usage && usage.plan !== 'pro' && (
+              <div className="mt-10 rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                style={{
+                  background: usage.free_pro_used === false
+                    ? 'rgba(233,185,76,0.07)'
+                    : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${usage.free_pro_used === false ? 'rgba(233,185,76,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                }}>
+                <div className="flex items-center gap-3">
+                  <span style={{ fontSize: 18 }}>{usage.free_pro_used === false ? '🎁' : '🔒'}</span>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: usage.free_pro_used === false ? 'var(--gold)' : 'var(--foreground)' }}>
+                      {usage.free_pro_used === false
+                        ? 'You have 1 free Pro use — try any feature below'
+                        : 'Free trial used · Upgrade to unlock Pro features'}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                      {usage.free_pro_used === false
+                        ? 'Cover Letter, Interview Prep or Cold Outreach — pick one, no card needed'
+                        : 'Plans start at ₹99 · One-time · No subscription'}
+                    </p>
+                  </div>
+                </div>
+                {usage.free_pro_used !== false && (
+                  <button
+                    onClick={() => router.push('/pricing')}
+                    className="shrink-0 h-8 px-4 text-xs font-bold rounded-lg transition-all"
+                    style={{ background: 'var(--gold)', color: 'var(--background)' }}>
+                    View Plans →
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* ── Cover Letter ── */}
             <div className="mt-12">
               {/* Section header */}
