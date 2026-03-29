@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import AnalysisResults from '@/components/AnalysisResults'
 import { Button } from '@/components/ui/button'
+import { getUsage } from '@/lib/api'
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -16,10 +17,33 @@ function formatDate(iso) {
 export default function AnalysisDetailPage() {
   const { id } = useParams()
   const router  = useRouter()
-  const { user, session, loading: authLoading } = useAuth()
-  const [analysis, setAnalysis] = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const { user, session, loading: authLoading, signOut } = useAuth()
+  const [analysis, setAnalysis]         = useState(null)
+  const [loading, setLoading]           = useState(true)
+  const [notFound, setNotFound]         = useState(false)
+  const [avatarOpen, setAvatarOpen]     = useState(false)
+  const [referralCode, setReferralCode] = useState(null)
+  const [copied, setCopied]             = useState(false)
+  const avatarRef = useRef(null)
+
+  useEffect(() => {
+    if (!avatarOpen) return
+    const handler = (e) => { if (avatarRef.current && !avatarRef.current.contains(e.target)) setAvatarOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [avatarOpen])
+
+  useEffect(() => {
+    if (!session?.access_token) return
+    getUsage(session.access_token).then(u => { if (u?.referral_code) setReferralCode(u.referral_code) })
+  }, [session])
+
+  const copyReferral = () => {
+    if (!referralCode) return
+    navigator.clipboard.writeText(`https://resumemax.in?ref=${referralCode}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   useEffect(() => {
     if (authLoading) return
@@ -61,9 +85,42 @@ export default function AnalysisDetailPage() {
             </Link>
           </div>
           {user && (
-            <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[200px]">
-              {user.email}
-            </span>
+            <div ref={avatarRef} className="relative">
+              <button
+                onClick={() => setAvatarOpen(o => !o)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all"
+                style={{ background: 'var(--gold)', color: '#0d0d11' }}>
+                {user.email?.[0]?.toUpperCase() ?? '?'}
+              </button>
+              {avatarOpen && (
+                <div className="absolute right-0 top-10 w-52 rounded-xl shadow-2xl z-50 overflow-hidden"
+                  style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+                  <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--foreground)' }}>{user.email}</p>
+                  </div>
+                  <Link href="/pricing"
+                    onClick={() => setAvatarOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5"
+                    style={{ color: 'var(--muted-foreground)' }}>
+                    Upgrade Plan
+                  </Link>
+                  {referralCode && (
+                    <button
+                      onClick={copyReferral}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
+                      style={{ color: 'var(--gold)' }}>
+                      {copied ? '✓ Link copied!' : '🎁 Refer & Earn +2 analyses'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setAvatarOpen(false); signOut() }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
+                    style={{ color: 'var(--danger)' }}>
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </nav>

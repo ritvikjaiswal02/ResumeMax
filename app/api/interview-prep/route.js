@@ -55,7 +55,7 @@ export async function POST(request) {
       `CRITICAL RULES:\n` +
       `1. PERSONALIZATION — each question MUST relate to the job description. Each tip MUST reference a REAL project, skill, or experience from this specific resume. Never invent anything.\n` +
       `2. REALISTIC QUESTIONS — sound like a real interviewer. Never ask generic questions like "Tell me about yourself" or "What are your strengths?"\n` +
-      `3. ACTIONABLE TIPS — each tip must say WHAT to mention and HOW to frame it. Bad tip: "Talk about your experience confidently." Good tip: "Reference your ResumeLens project — explain how you handled API latency and what tradeoffs you made."\n` +
+      `3. ACTIONABLE TIPS — each tip must say WHAT to mention and HOW to frame it. Bad tip: "Talk about your experience confidently." Good tip: "Reference your ResumeMax project — explain how you handled API latency and what tradeoffs you made."\n` +
       `4. LEVEL MATCHING — adjust difficulty based on role seniority. If JD mentions system design, include a deeper technical question.\n` +
       `5. STYLE — clear, concise, natural language. No markdown. No fluff.\n\n` +
       `Return ONLY valid JSON, no markdown, no backticks:\n` +

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { getUsage } from '@/lib/api'
 import Reveal from '@/components/Reveal'
 
 const PASSES = [
@@ -59,15 +60,24 @@ export default function PricingPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [avatarOpen])
-  const [isPro, setIsPro]               = useState(false)
-  const [successPlan, setSuccessPlan]   = useState(null)
+  const [isPro, setIsPro]                     = useState(false)
+  const [successPlan, setSuccessPlan]         = useState(null)
+  const [referralCode, setReferralCode]       = useState(null)
+  const [referralCopied, setReferralCopied]   = useState(false)
   useEffect(() => {
-    if (!session) return
-    fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      .then(r => r.json())
-      .then(d => { if (d.plan === 'pro') setIsPro(true) })
-      .catch(() => {})
+    if (!session?.access_token) return
+    getUsage(session.access_token).then(d => {
+      if (d?.plan === 'pro') setIsPro(true)
+      if (d?.referral_code) setReferralCode(d.referral_code)
+    }).catch(() => {})
   }, [session])
+
+  const copyReferral = () => {
+    if (!referralCode) return
+    navigator.clipboard.writeText(`https://resumemax.in?ref=${referralCode}`)
+    setReferralCopied(true)
+    setTimeout(() => setReferralCopied(false), 2000)
+  }
 
   const handleBuy = async (planId) => {
     if (!session) { router.push('/login'); return }
@@ -147,6 +157,14 @@ export default function PricingPage() {
                     style={{ color: 'var(--muted-foreground)' }}>
                     Dashboard
                   </Link>
+                  {referralCode && (
+                    <button
+                      onClick={copyReferral}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
+                      style={{ color: 'var(--gold)' }}>
+                      {referralCopied ? '✓ Link copied!' : '🎁 Refer & Earn +2 analyses'}
+                    </button>
+                  )}
                   <button onClick={() => { setAvatarOpen(false); signOut() }}
                     className="w-full flex items-center px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
                     style={{ color: 'var(--danger)' }}>
