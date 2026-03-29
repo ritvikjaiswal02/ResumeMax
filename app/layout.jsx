@@ -2,6 +2,11 @@ import { Fraunces, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/lib/utils'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import Script from 'next/script'
+
+const GA_ID = 'G-XXXXXXXXXX' // ← replace with your GA4 Measurement ID
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -54,8 +59,19 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={cn(fraunces.variable, dmSans.variable)}>
+      <head>
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script id="ga4-init" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}');
+        `}</Script>
+      </head>
       <body>
         <TooltipProvider>{children}</TooltipProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
