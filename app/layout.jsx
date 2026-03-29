@@ -6,7 +6,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
 
-const GA_ID = 'G-XXXXXXXXXX' // ← replace with your GA4 Measurement ID
+const GA_ID = 'G-DQ2KRHFYR8'
 
 const fraunces = Fraunces({
   subsets: ['latin'],
