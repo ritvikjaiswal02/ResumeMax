@@ -427,7 +427,7 @@ export default function AnalyzePage() {
   }
 
   const handleAnalyze = async () => {
-    if (!user) { setShowAuthModal(true); return }
+    if (!user || !session) { setShowAuthModal(true); return }
     setError(''); setResult(null); setLoading(true)
     try {
       const formData = new FormData()
@@ -604,7 +604,7 @@ export default function AnalyzePage() {
   }
 
   const handleReanalyze = async () => {
-    if (!user) { setShowAuthModal(true); return }
+    if (!user || !session) { setShowAuthModal(true); return }
     const fileToUse = reanalyzeFile   // pre-populated when panel opens; null means user cleared it
     const jdToUse   = reanalyzeJd.trim() || jobDescription
     if (!fileToUse || !jdToUse) return
