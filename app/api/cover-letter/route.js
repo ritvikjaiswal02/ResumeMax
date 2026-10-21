@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { validatePDFMeta, validatePDFBytes, validateJD, sanitizeString } from '@/lib/validate'
+import { getProAccess, consumeFreeProTrial } from '@/lib/plan'
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+
+const PRO_REQUIRED = { error: 'pro_required', message: 'Cover letter generation is a Pro feature' }
 
 export async function POST(request) {
   try {
@@ -19,16 +22,12 @@ export async function POST(request) {
     // ── Pro gate ────────────────────────────────────────────────────────
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, plan_expires_at, free_pro_used')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.plan !== 'pro') {
-      return NextResponse.json(
-        { error: 'pro_required', message: 'Cover letter generation is a Pro feature' },
-        { status: 403 }
-      )
-    }
+    const access = getProAccess(profile)
+    if (!access) return NextResponse.json(PRO_REQUIRED, { status: 403 })
 
     // ── Parse form data ─────────────────────────────────────────────────
     const formData      = await request.formData()
@@ -95,6 +94,12 @@ export async function POST(request) {
 
     if (!coverLetter) {
       return NextResponse.json({ error: 'Generation failed, please try again' }, { status: 500 })
+    }
+
+    // Spend the free Pro use only now that generation succeeded. If a
+    // parallel request already spent it, this one gets no result.
+    if (access === 'trial' && !(await consumeFreeProTrial(supabase, user.id))) {
+      return NextResponse.json(PRO_REQUIRED, { status: 403 })
     }
 
     console.log(`[cover-letter] generated for user=${user.id}, length=${coverLetter.length}`)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { validatePDFMeta, validatePDFBytes, validateJD, checkRateLimit } from '@/lib/validate'
+import { getEffectivePlan } from '@/lib/plan'
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
@@ -51,7 +52,7 @@ export async function POST(request) {
     // ── Usage check ────────────────────────────────────────────────────
     let { data: profile } = await supabase
       .from('profiles')
-      .select('analyses_used, plan, analyses_reset_at, bonus_analyses')
+      .select('analyses_used, plan, plan_expires_at, analyses_reset_at, bonus_analyses')
       .eq('id', user.id)
       .single()
 
@@ -87,9 +88,9 @@ export async function POST(request) {
       profile.analyses_used = 0
     }
 
-    // Enforce free limit
+    // Enforce free limit (an expired pass counts as free)
     const freeLimit = 5 + (profile.bonus_analyses ?? 0)
-    if (profile.plan === 'free' && profile.analyses_used >= freeLimit) {
+    if (getEffectivePlan(profile) !== 'pro' && profile.analyses_used >= freeLimit) {
       return NextResponse.json(
         { error: 'limit_reached', message: `You have used your ${freeLimit} free analyses this month` },
         { status: 403 }

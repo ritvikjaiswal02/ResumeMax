@@ -421,8 +421,8 @@ export default function AnalyzePage() {
     getUsage(session.access_token).then(setUsage)
   }, [session])
 
+  // The Pro routes spend the free use server-side; this only updates the UI.
   const markFreeTrialUsed = () => {
-    fetch('/api/use-free-trial', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } })
     setUsage(prev => prev ? { ...prev, free_pro_used: true } : prev)
   }
 
@@ -472,6 +472,7 @@ export default function AnalyzePage() {
       const data = await res.json()
       if (!res.ok) {
         setCoverLetterError(data.message || 'Generation failed. Please try again.')
+        if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setCoverLetter(data.coverLetter)
         if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
@@ -507,8 +508,10 @@ export default function AnalyzePage() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
-      if (!res.ok) setOutreachError(data.message || 'Generation failed. Please try again.')
-      else {
+      if (!res.ok) {
+        setOutreachError(data.message || 'Generation failed. Please try again.')
+        if (res.status === 403) getUsage(session.access_token).then(setUsage)
+      } else {
         setOutreachResult(data)
         if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
       }
@@ -543,8 +546,10 @@ export default function AnalyzePage() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
-      if (!res.ok) setInterviewError(data.message || 'Generation failed. Please try again.')
-      else {
+      if (!res.ok) {
+        setInterviewError(data.message || 'Generation failed. Please try again.')
+        if (res.status === 403) getUsage(session.access_token).then(setUsage)
+      } else {
         setInterviewQuestions(data.questions)
         if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
       }
