@@ -10,13 +10,13 @@ import {
   Copy,
   Download,
   Info,
-  LoaderCircle,
   Minus,
   TriangleAlert,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Surface, useReducedMotion } from '@/components/landing/primitives'
+import { ProgressBar, Spinner, useElapsed } from '@/components/landing/Loader'
 import { DANGER, INK, LINE, MIST, MUTED, SUCCESS, TEXT, TOOLS, WARNING } from '@/components/landing/tokens'
 import { cn } from '@/lib/utils'
 
@@ -81,7 +81,7 @@ function ScoreRing({ score, delta }) {
 
   return (
     <div className="flex items-center gap-4 sm:gap-5">
-      <div className="relative size-[112px] shrink-0">
+      <div className="relative size-[136px] shrink-0">
         <svg viewBox="0 0 96 96" className="size-full -rotate-90" aria-hidden="true">
           <circle cx="48" cy="48" r={r} fill="none" stroke={LINE} strokeWidth="8" />
           <circle
@@ -98,7 +98,7 @@ function ScoreRing({ score, delta }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[32px] font-medium leading-none tracking-[-0.03em] tabular-nums" style={{ color: INK }}>
+          <span className="text-[40px] font-medium leading-none tracking-[-0.03em] tabular-nums" style={{ color: INK }}>
             {score}
           </span>
           <span className="mt-1 text-[11.5px] leading-none" style={{ color: MUTED }}>
@@ -164,7 +164,7 @@ function SectionTitle({ children, count, sub, extra }) {
     <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-[17px] font-medium tracking-[-0.01em]" style={{ color: INK }}>
+          <h2 className="text-[20px] font-medium tracking-[-0.02em]" style={{ color: INK }}>
             {children}
           </h2>
           {count != null && (
@@ -370,6 +370,11 @@ function KeywordColumn({ title, count, tone, children }) {
   )
 }
 
+function ReanalyzeProgress() {
+  const t = useElapsed()
+  return <ProgressBar tool="resume" value={Math.min(94, 100 * (1 - Math.exp(-t / 11)))} className="w-16" />
+}
+
 /* ─── AnalysisResults ─── */
 export default function AnalysisResults({ result, previousResult, comparisonSummary, reanalyzing }) {
   if (!result) return null
@@ -385,7 +390,7 @@ export default function AnalysisResults({ result, previousResult, comparisonSumm
     : { color: MUTED, ink: MUTED, Icon: Minus }
 
   return (
-    <div className="relative flex flex-col gap-8">
+    <div className="relative flex flex-col gap-12">
 
       {/* Inline re-analyzing overlay */}
       {reanalyzing && (
@@ -395,13 +400,14 @@ export default function AnalysisResults({ result, previousResult, comparisonSumm
         >
           <div
             role="status"
-            className="flex items-center gap-3 rounded-full bg-white px-5 py-3"
+            className="sticky top-40 flex items-center gap-3 rounded-full bg-white px-5 py-3"
             style={{ boxShadow: '0 0 0 1px rgba(13,15,14,0.06), 0 16px 36px -14px rgba(13,15,14,0.22)' }}
           >
-            <LoaderCircle aria-hidden="true" className="spin size-4 shrink-0" style={{ color: R.strong }} />
+            <Spinner size={18} color={R.strong} track={R.tint} />
             <span className="text-[14px] font-medium" style={{ color: INK }}>
-              Re-analyzing your resume…
+              Re-checking your resume
             </span>
+            <ReanalyzeProgress />
           </div>
         </div>
       )}
@@ -434,14 +440,14 @@ export default function AnalysisResults({ result, previousResult, comparisonSumm
       <ExportToolbar result={result} />
 
       {/* 1. Score and keywords */}
-      <Surface className="grid md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-        <div className="flex items-center p-4 sm:p-6">
+      <Surface className="grid overflow-hidden md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className="flex items-center p-5 sm:p-7" style={{ background: `linear-gradient(160deg, ${R.tint}, #fff 70%)` }}>
           {/* Keyed to score so it re-animates on change */}
           <ScoreRing key={result.score} score={result.score} delta={delta} />
         </div>
 
         <div
-          className="grid gap-6 border-t p-4 sm:grid-cols-2 sm:p-6 md:border-l md:border-t-0"
+          className="grid gap-6 border-t p-5 sm:grid-cols-2 sm:p-7 md:border-l md:border-t-0"
           style={{ borderColor: LINE }}
         >
           {/* Matched */}

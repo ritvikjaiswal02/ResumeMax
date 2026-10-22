@@ -159,11 +159,11 @@ function ProgressionBanner({ analyses }) {
 /* ── Skeleton ─────────────────────────────────────────────── */
 function SkeletonRow() {
   return (
-    <div className="flex animate-pulse items-start gap-4 px-5 py-5 sm:px-6">
-      <div className="h-8 w-11 shrink-0 rounded-full" style={{ background: MIST }} />
+    <div className="flex items-start gap-4 px-5 py-5 sm:px-6">
+      <div className="rmx-shimmer h-8 w-11 shrink-0 rounded-full" style={{ background: MIST }} />
       <div className="flex-1 space-y-2.5">
-        <div className="h-3.5 w-2/3 max-w-[260px] rounded-full" style={{ background: '#ECEFEA' }} />
-        <div className="h-3 w-1/3 max-w-[160px] rounded-full" style={{ background: MIST }} />
+        <div className="rmx-shimmer h-3.5 w-2/3 max-w-[260px] rounded-full" style={{ background: '#ECEFEA' }} />
+        <div className="rmx-shimmer h-3 w-1/3 max-w-[160px] rounded-full" style={{ background: MIST }} />
       </div>
     </div>
   )

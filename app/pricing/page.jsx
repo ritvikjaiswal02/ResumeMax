@@ -11,6 +11,7 @@ import FaqSection from '@/components/landing/sections/FaqSection'
 import { Surface, PrimaryButton, ToolTag } from '@/components/landing/primitives'
 import { INK, LINE, MIST, MUTED, TEXT, TOOLS } from '@/components/landing/tokens'
 import { cn } from '@/lib/utils'
+import { Dots } from '@/components/landing/Loader'
 
 const PASSES = [
   {
@@ -318,7 +319,7 @@ export default function PricingPage() {
                       aria-busy={isLoading || undefined}
                       className="mt-6 h-auto min-h-[44px] w-full whitespace-normal px-4 py-2.5 text-center leading-snug disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[272px] sm:px-6"
                     >
-                      {isLoading ? 'Opening payment…' : `Pay ${pass.price} with Razorpay`}
+                      {isLoading ? <>Opening payment <Dots /></> : `Pay ${pass.price} with Razorpay`}
                     </PrimaryButton>
                   )}
                   {!isActive && !loading && !user && (

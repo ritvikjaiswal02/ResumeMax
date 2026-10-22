@@ -7,7 +7,26 @@ import { Button } from '@/components/ui/button'
 import { PrimaryButton, SecondaryButton, Stage } from './primitives'
 import { INK, MUTED, TEXT, TOOLS, TOOL_ORDER, toolAnchor } from './tokens'
 
-const ResumeScene = dynamic(() => import('@/components/three/ResumeScene'), { ssr: false })
+import { Spinner } from './Loader'
+
+const ResumeScene = dynamic(() => import('@/components/three/ResumeScene'), {
+  ssr: false,
+  // Shown while three.js downloads, so the stage never sits empty.
+  loading: () => (
+    <div className="absolute inset-0 grid place-items-center" role="status" aria-label="Loading the interactive resume">
+      <div className="rmx-shimmer h-[62%] w-[52%] max-w-[340px] rounded-[18px] bg-white/70" style={{ boxShadow: '0 0 0 1px rgba(13,15,14,0.06), 0 24px 48px -20px rgba(13,15,14,0.25)' }}>
+        <div className="flex h-full flex-col gap-3 p-6">
+          <span className="h-4 w-1/2 rounded-full bg-[#E3E6E1]" />
+          <span className="h-2.5 w-1/3 rounded-full bg-[#EEF0EC]" />
+          <span className="mt-4 h-2.5 w-full rounded-full bg-[#EEF0EC]" />
+          <span className="h-2.5 w-11/12 rounded-full bg-[#EEF0EC]" />
+          <span className="h-2.5 w-4/5 rounded-full bg-[#EEF0EC]" />
+          <span className="mt-auto self-center"><Spinner size={22} color="#12B76A" track="#D9F6E6" /></span>
+        </div>
+      </div>
+    </div>
+  ),
+})
 
 export default function Hero() {
   const sceneRef = useRef(null)

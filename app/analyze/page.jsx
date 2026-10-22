@@ -2,10 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Check, ChevronDown, Copy, Download, FileText, FileUp, Gift, Lightbulb, Lock, Mail,
-  MessageSquare, RefreshCw, RotateCcw, TriangleAlert, X,
-} from 'lucide-react'
+import { Check, ChevronDown, FileText, FileUp, Gift, Lock, Mail, RefreshCw, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getUsage } from '@/lib/api'
 import AnalysisResults from '@/components/AnalysisResults'
@@ -13,10 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AppNav from '@/components/landing/AppNav'
 import { PrimaryButton, SecondaryButton, Stage, Surface, ToolTag } from '@/components/landing/primitives'
-import { INK, LINE, MIST, MUTED, SUCCESS, TEXT, TOOLS } from '@/components/landing/tokens'
+import { INK, LINE, MIST, MUTED, TOOLS } from '@/components/landing/tokens'
+import { Dots, ProgressSteps } from '@/components/landing/Loader'
+import { CoverLetterPanel, InterviewPanel, NextSteps, OutreachPanel, ToolSwitcher } from '@/components/analyze/ProTools'
 import { cn } from '@/lib/utils'
 
 const JD_MAX         = 3000
@@ -34,15 +32,6 @@ const TEXTAREA_CLASS =
 const SMALL_BTN = 'h-9 gap-1.5 px-3.5 text-[13.5px]'
 
 /* ─── Small shared bits ─── */
-function Spinner({ size = 16, color = INK, track = LINE }) {
-  return (
-    <svg className="spin shrink-0" width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke={track} strokeWidth="3" />
-      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="3" strokeDasharray="14 42" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 function ErrorNote({ children, className }) {
   return (
     <div role="alert" className={cn('flex items-start gap-2.5 rounded-[12px] px-4 py-3 text-[14px] leading-[1.5]', className)}
@@ -53,45 +42,11 @@ function ErrorNote({ children, className }) {
   )
 }
 
-function WorkingNote({ children }) {
-  return (
-    <Surface className="flex items-center gap-3 px-5 py-4" role="status">
-      <Spinner color={INK} />
-      <span className="text-[14.5px] font-medium" style={{ color: TEXT }}>{children}</span>
-    </Surface>
-  )
-}
-
 function FieldLabel({ htmlFor, id, children }) {
   return (
     <Label htmlFor={htmlFor} id={id} className="text-[14px] font-medium" style={{ color: INK }}>
       {children}
     </Label>
-  )
-}
-
-/* Header for each Pro tool section: tool tag, title, description, action. */
-function ToolHeader({ tool, id, title, description, status, action }) {
-  return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <ToolTag tool={tool} />
-          {status && (
-            <span className="inline-flex h-5 items-center rounded-full bg-white px-2 text-[11px] font-medium" style={{ color: TOOLS[tool].deep }}>
-              {status}
-            </span>
-          )}
-        </div>
-        <h2 id={id} className="mt-3 text-[24px] font-medium sm:text-[28px]" style={{ color: INK, lineHeight: 1.1, letterSpacing: '-0.03em' }}>
-          {title}
-        </h2>
-        <p className="mt-2 max-w-[520px] text-[15px] leading-[1.55]" style={{ color: TOOLS[tool].deep }}>
-          {description}
-        </p>
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
   )
 }
 
@@ -141,64 +96,13 @@ function StepIndicator({ resumeFile, jobDescription, result }) {
   )
 }
 
-/* ─── Loading Steps ─── */
-const LOADING_STEPS = [
-  'Reading your resume',
-  'Matching keywords',
-  'Scoring alignment',
-  'Writing suggestions',
-]
+/* ─── Loading ─── */
+const LOADING_STEPS = ['Reading your resume', 'Pulling keywords from the job post', 'Matching and scoring', 'Checking ATS structure', 'Writing bullet rewrites']
 
-function LoadingSteps() {
-  const [current, setCurrent] = useState(0)
-
-  useEffect(() => {
-    const intervals = [900, 1800, 2700]
-    const timers = intervals.map((delay, i) =>
-      setTimeout(() => setCurrent(i + 1), delay)
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [])
-
+function LoadingSteps({ title = 'Checking your resume' }) {
   return (
-    <Stage tool="resume" className="flex justify-center py-16 sm:py-24" role="status" aria-live="polite">
-      <Surface className="flex w-full max-w-[360px] flex-col items-center gap-7 px-6 py-9 sm:px-8">
-        <Spinner size={44} color={INK} track={TOOLS.resume.tint} />
-        <div className="text-center">
-          <p className="text-[18px] font-medium" style={{ color: INK, letterSpacing: '-0.02em' }}>Checking your resume</p>
-          <p className="mt-1 text-[14px]" style={{ color: MUTED }}>This usually takes a few seconds.</p>
-        </div>
-
-        <ol className="flex w-full flex-col gap-3">
-          {LOADING_STEPS.map((step, i) => {
-            const done    = i < current
-            const running = i === current
-
-            return (
-              <li key={i}
-                className="flex items-center gap-3 transition-opacity duration-300"
-                style={{ opacity: i > current ? 0.45 : 1 }}>
-                <span className="grid size-5 shrink-0 place-items-center rounded-full"
-                  style={
-                    done    ? { background: TOOLS.resume.strong, color: '#fff' } :
-                    running ? { background: TOOLS.resume.tint, boxShadow: `inset 0 0 0 1.5px ${TOOLS.resume.strong}` } :
-                              { background: MIST, boxShadow: `inset 0 0 0 1px ${LINE}` }
-                  }>
-                  {done ? (
-                    <Check className="size-3" strokeWidth={3} aria-hidden />
-                  ) : running ? (
-                    <span className="size-1.5 rounded-full" style={{ background: TOOLS.resume.strong }} />
-                  ) : null}
-                </span>
-                <span className="text-[14.5px] font-medium"
-                  style={{ color: done ? TOOLS.resume.deep : running ? INK : MUTED }}>
-                  {step}
-                </span>
-              </li>
-            )
-          })}
-        </ol>
-      </Surface>
+    <Stage tool="resume" className="flex justify-center py-14 sm:py-20">
+      <ProgressSteps tool="resume" title={title} steps={LOADING_STEPS} expected={20} />
     </Stage>
   )
 }
@@ -364,7 +268,7 @@ function AuthModal({ onClose, signInWithGoogle, signInWithEmail }) {
             className={cn(INPUT_CLASS, 'h-12 rounded-[12px]')} />
           <PrimaryButton onClick={sendLink} disabled={sending || !email.trim()}
             className="h-12 w-full disabled:opacity-40">
-            {sending ? 'Sending link…' : 'Email me a sign-in link'}
+            {sending ? <>Sending link <Dots /></> : 'Email me a sign-in link'}
           </PrimaryButton>
         </div>
       )}
@@ -417,6 +321,7 @@ export default function AnalyzePage() {
   const [showAuthModal, setShowAuthModal]   = useState(false)
   const [showPaywall, setShowPaywall]       = useState(false)
   const [usage, setUsage]                   = useState(null)
+  const [activeTool, setActiveTool]         = useState('resume')
 
   const [coverLetter, setCoverLetter]             = useState(null)
   const [coverLetterLoading, setCoverLetterLoading] = useState(false)
@@ -511,7 +416,7 @@ export default function AnalyzePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setCoverLetterError(data.message || 'Generation failed. Please try again.')
+        setCoverLetterError(data.message || data.error || 'Generation failed. Please try again.')
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setCoverLetter(data.coverLetter)
@@ -549,7 +454,7 @@ export default function AnalyzePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setOutreachError(data.message || 'Generation failed. Please try again.')
+        setOutreachError(data.message || data.error || 'Generation failed. Please try again.')
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setOutreachResult(data)
@@ -587,7 +492,7 @@ export default function AnalyzePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setInterviewError(data.message || 'Generation failed. Please try again.')
+        setInterviewError(data.message || data.error || 'Generation failed. Please try again.')
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setInterviewQuestions(data.questions)
@@ -716,6 +621,7 @@ export default function AnalyzePage() {
     setPreviousResult(null); setComparisonSummary(null)
     setReanalyzing(false); setShowReanalyzePanel(false)
     setReanalyzeFile(null); setReanalyzeJd('')
+    setActiveTool('resume')
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
@@ -731,6 +637,21 @@ export default function AnalyzePage() {
   }
   const proActionLabel = (tool) => usage?.plan === 'pro' ? 'Generate' : freeLeft(tool) > 0 ? 'Generate for free' : 'Unlock Pro'
   const anyFreeLeft = ['cover', 'outreach', 'interview', 'portfolio'].some((t) => freeLeft(t) > 0)
+  const toolAccess = (tool) => (usage && !canUseTool(tool) ? 'locked' : 'open')
+
+  const openTool = (tool) => {
+    setActiveTool(tool)
+    topRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const toolMeta = (tool, loadingNow, ready) =>
+    loadingNow ? 'Writing…' : ready ? 'Ready to copy' : proStatus(tool) ?? 'Pro'
+  const switcherItems = result ? [
+    { id: 'resume', label: 'Resume report', meta: `Score ${result.score} of 100`, state: reanalyzing ? 'loading' : 'idle' },
+    { id: 'cover', label: 'Cover letter', meta: toolMeta('cover', coverLetterLoading, coverLetter), state: coverLetterLoading ? 'loading' : coverLetter ? 'ready' : 'idle' },
+    { id: 'outreach', label: 'Cold outreach', meta: toolMeta('outreach', outreachLoading, outreachResult), state: outreachLoading ? 'loading' : outreachResult ? 'ready' : 'idle' },
+    { id: 'interview', label: 'Interview prep', meta: toolMeta('interview', interviewLoading, interviewQuestions), state: interviewLoading ? 'loading' : interviewQuestions ? 'ready' : 'idle' },
+  ] : []
 
   return (
     <div ref={topRef} className="rmx min-h-screen bg-white" style={{ color: INK }}>
@@ -755,7 +676,7 @@ export default function AnalyzePage() {
       <AppNav active="analyze" user={user} usage={usage} onSignOut={signOut} loading={authLoading} />
 
       {/* ── Main ── */}
-      <main className="mx-auto max-w-[1040px] px-5 py-10 sm:px-8 sm:py-14">
+      <main className="mx-auto max-w-[1120px] px-5 py-10 sm:px-8 sm:py-14">
 
         {/* ════ INPUT FORM ════ */}
         {!result && !loading && (
@@ -868,32 +789,41 @@ export default function AnalyzePage() {
         {result && (
           <div className="anim-fade-up">
 
-            {/* Step indicator — all complete */}
-            <StepIndicator resumeFile={resumeFile} jobDescription={jobDescription} result={result} />
-
-            {/* Summary bar */}
-            <div className="no-print mt-6 mb-8 flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between"
-              style={{ borderColor: LINE }}>
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-[10px]"
-                  style={{ background: TOOLS.resume.tint, color: TOOLS.resume.deep }}>
-                  <FileText className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-medium" style={{ color: INK }}>
-                    {resumeFile?.name}
-                  </p>
-                  <p className="hidden truncate text-[13.5px] sm:block" style={{ color: MUTED }}>
-                    {jobDescription.trim().slice(0, 80)}{jobDescription.length > 80 ? '…' : ''}
-                  </p>
+            {/* Job header */}
+            <div className="no-print flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0 max-w-[720px]">
+                <p className="inline-flex items-center gap-2 text-[14px] font-medium" style={{ color: TOOLS.resume.deep }}>
+                  <span aria-hidden className="size-2.5 rounded-full" style={{ background: TOOLS.resume.strong }} />
+                  Your results
+                </p>
+                <h1 className="mt-3 font-medium"
+                  style={{ color: INK, fontSize: 'clamp(30px, 4vw, 44px)', lineHeight: 1.05, letterSpacing: '-0.04em', textWrap: 'balance' }}>
+                  Everything you need for this job
+                </h1>
+                <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2 text-[13.5px]">
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 font-medium"
+                    style={{ background: MIST, color: INK }}>
+                    <FileText className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{resumeFile?.name}</span>
+                  </span>
+                  <span className="hidden min-w-0 max-w-[420px] truncate sm:inline" style={{ color: MUTED }}>
+                    {truncate(jobDescription.trim().replace(/\s+/g, ' '), 90)}
+                  </span>
                 </div>
               </div>
               <SecondaryButton onClick={handleReset} className={cn(SMALL_BTN, 'self-start sm:self-auto')}>
                 <RotateCcw className="size-4" aria-hidden />
-                Start over
+                New check
               </SecondaryButton>
             </div>
 
+            <div className="mt-8">
+              <ToolSwitcher active={activeTool} onChange={openTool} items={switcherItems} />
+            </div>
+
+            <div className="mt-8">
+            {activeTool === 'resume' && (
+            <div id="panel-resume" role="tabpanel" aria-labelledby="tab-resume" className="anim-fade-up">
             <AnalysisResults
               result={result}
               previousResult={previousResult}
@@ -903,7 +833,7 @@ export default function AnalyzePage() {
 
             {/* ── Free Pro Trial Banner ── */}
             {usage && usage.plan !== 'pro' && (
-              <div className="mt-12 flex flex-col gap-4 rounded-[18px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+              <div className="no-print mt-12 flex flex-col gap-4 rounded-[18px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
                 style={anyFreeLeft
                   ? { background: TOOLS.resume.tint }
                   : { background: MIST, boxShadow: `inset 0 0 0 1px ${LINE}` }}>
@@ -935,266 +865,9 @@ export default function AnalyzePage() {
               </div>
             )}
 
-            {/* ── Cover Letter ── */}
-            <Stage tool="cover" role="region" className="mt-8 sm:mt-10" aria-labelledby="cover-heading">
-              <ToolHeader
-                tool="cover"
-                id="cover-heading"
-                title="Cover letter"
-                description="Tailored to this job description using your resume."
-                status={proStatus('cover')}
-                action={!coverLetterLoading && (
-                  <PrimaryButton onClick={handleGenerateCoverLetter} className="h-10 px-4 text-[14px]">
-                    {coverLetter ? 'Regenerate' : proActionLabel('cover')}
-                  </PrimaryButton>
-                )}
-              />
-
-              {(coverLetterLoading || coverLetterError || coverLetter) && (
-                <div className="mt-6 flex flex-col gap-3">
-                  {/* Loading */}
-                  {coverLetterLoading && <WorkingNote>Writing your cover letter…</WorkingNote>}
-
-                  {/* Error */}
-                  {coverLetterError && <ErrorNote>{coverLetterError}</ErrorNote>}
-
-                  {/* Cover letter output */}
-                  {coverLetter && (
-                    <Surface className="anim-fade-up overflow-hidden">
-                      {/* Toolbar */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6"
-                        style={{ borderColor: LINE }}>
-                        <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: MUTED }}>
-                          <FileText className="size-4" style={{ color: TOOLS.cover.deep }} aria-hidden />
-                          cover_letter.pdf
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <SecondaryButton onClick={handleCopyCoverLetter} className={SMALL_BTN} aria-live="polite">
-                            {coverLetterCopied ? <Check className="size-4" style={{ color: SUCCESS }} aria-hidden /> : <Copy className="size-4" aria-hidden />}
-                            {coverLetterCopied ? 'Copied' : 'Copy'}
-                          </SecondaryButton>
-                          <SecondaryButton
-                            onClick={handleDownloadCoverLetter}
-                            disabled={coverLetterDownloading}
-                            className={cn(SMALL_BTN, 'disabled:opacity-60')}>
-                            {coverLetterDownloading ? (
-                              <>
-                                <Spinner size={14} />
-                                Exporting…
-                              </>
-                            ) : (
-                              <>
-                                <Download className="size-4" aria-hidden />
-                                Download PDF
-                              </>
-                            )}
-                          </SecondaryButton>
-                        </div>
-                      </div>
-
-                      {/* Letter body */}
-                      <div className="px-5 py-6 sm:px-8 sm:py-7">
-                        <p className="whitespace-pre-wrap text-[15px] leading-[1.8]" style={{ color: TEXT }}>
-                          {coverLetter}
-                        </p>
-                      </div>
-                    </Surface>
-                  )}
-                </div>
-              )}
-            </Stage>
-
-            {/* ── Cold Outreach ── */}
-            <Stage tool="outreach" role="region" className="mt-6" aria-labelledby="outreach-heading">
-              <ToolHeader
-                tool="outreach"
-                id="outreach-heading"
-                title="Cold outreach"
-                description="A personalised cold email or LinkedIn DM for this role."
-                status={proStatus('outreach')}
-                action={!outreachLoading && (
-                  <PrimaryButton onClick={handleGenerateOutreach} disabled={!result}
-                    className="h-10 px-4 text-[14px] disabled:opacity-40">
-                    {outreachResult ? 'Regenerate' : proActionLabel('outreach')}
-                  </PrimaryButton>
-                )}
-              />
-
-              <Surface className="mt-6 p-4 sm:p-5">
-                {/* Optional inputs */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel htmlFor="recruiter-name">
-                      Recruiter name <span className="font-normal" style={{ color: MUTED }}>(optional)</span>
-                    </FieldLabel>
-                    <Input
-                      id="recruiter-name"
-                      type="text"
-                      value={recruiterName}
-                      onChange={e => setRecruiterName(e.target.value)}
-                      placeholder="e.g. Sarah"
-                      className={INPUT_CLASS}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <FieldLabel htmlFor="company-name">
-                      Company name <span className="font-normal" style={{ color: MUTED }}>(optional)</span>
-                    </FieldLabel>
-                    <Input
-                      id="company-name"
-                      type="text"
-                      value={companyName}
-                      onChange={e => setCompanyName(e.target.value)}
-                      placeholder="e.g. Google"
-                      className={INPUT_CLASS}
-                    />
-                  </div>
-                </div>
-
-                {/* Mode tabs */}
-                <Tabs value={outreachMode} onValueChange={(v) => setOutreachMode(v)} className="mt-5 gap-0">
-                  <TabsList aria-label="Message type" className="h-10 w-full rounded-full bg-[#F1F3EF] p-1 sm:w-fit">
-                    <TabsTrigger value="email"
-                      className="rounded-full px-4 text-[14px] text-[#646A66] data-[active]:bg-white data-[active]:text-[#0D0F0E] data-[active]:shadow-[0_1px_2px_rgba(13,15,14,0.08)]">
-                      <Mail aria-hidden />
-                      Cold email
-                    </TabsTrigger>
-                    <TabsTrigger value="dm"
-                      className="rounded-full px-4 text-[14px] text-[#646A66] data-[active]:bg-white data-[active]:text-[#0D0F0E] data-[active]:shadow-[0_1px_2px_rgba(13,15,14,0.08)]">
-                      <MessageSquare aria-hidden />
-                      LinkedIn DM
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </Surface>
-
-              {(outreachLoading || outreachError || outreachResult) && (
-                <div className="mt-3 flex flex-col gap-3">
-                  {/* Loading */}
-                  {outreachLoading && <WorkingNote>Writing your outreach message…</WorkingNote>}
-
-                  {/* Error */}
-                  {outreachError && <ErrorNote>{outreachError}</ErrorNote>}
-
-                  {/* Output */}
-                  {outreachResult && (
-                    <Surface className="anim-fade-up overflow-hidden">
-                      {/* Toolbar */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6"
-                        style={{ borderColor: LINE }}>
-                        <div className="flex items-center gap-2">
-                          {outreachMode === 'email'
-                            ? <Mail className="size-4" style={{ color: TOOLS.outreach.deep }} aria-hidden />
-                            : <MessageSquare className="size-4" style={{ color: TOOLS.outreach.deep }} aria-hidden />}
-                          <span className="text-[13.5px] font-medium" style={{ color: MUTED }}>
-                            {outreachMode === 'email' ? 'Cold email' : 'LinkedIn DM'}
-                          </span>
-                          {outreachMode === 'dm' && (
-                            <span className="rounded-full px-2 py-0.5 text-[12px] font-medium tabular-nums"
-                              style={outreachResult.linkedInDm.length > 280
-                                ? { background: ERROR_BG, color: ERROR_TEXT }
-                                : { background: TOOLS.resume.tint, color: TOOLS.resume.deep }}>
-                              {outreachResult.linkedInDm.length} chars
-                            </span>
-                          )}
-                        </div>
-                        <SecondaryButton onClick={handleCopyOutreach} className={SMALL_BTN} aria-live="polite">
-                          {outreachCopied ? <Check className="size-4" style={{ color: SUCCESS }} aria-hidden /> : <Copy className="size-4" aria-hidden />}
-                          {outreachCopied ? 'Copied' : 'Copy'}
-                        </SecondaryButton>
-                      </div>
-
-                      {/* Body */}
-                      <div className="px-5 py-6 sm:px-8 sm:py-7">
-                        {outreachMode === 'email' ? (
-                          <>
-                            <p className="mb-4 border-b pb-4 text-[14px]" style={{ color: MUTED, borderColor: LINE }}>
-                              Subject: <span className="font-medium" style={{ color: INK }}>
-                                {outreachResult.coldEmail.subject}
-                              </span>
-                            </p>
-                            <p className="whitespace-pre-wrap text-[15px] leading-[1.8]" style={{ color: TEXT }}>
-                              {outreachResult.coldEmail.body}
-                            </p>
-                          </>
-                        ) : (
-                          <p className="whitespace-pre-wrap text-[15px] leading-[1.8]" style={{ color: TEXT }}>
-                            {outreachResult.linkedInDm}
-                          </p>
-                        )}
-                      </div>
-                    </Surface>
-                  )}
-                </div>
-              )}
-            </Stage>
-
-            {/* ── Interview Prep ── */}
-            <Stage tool="interview" role="region" className="no-print mt-6" aria-labelledby="interview-heading">
-              <ToolHeader
-                tool="interview"
-                id="interview-heading"
-                title="Interview prep"
-                description="Practice questions tailored to this role, with tips from your own resume."
-                status={proStatus('interview')}
-                action={!interviewLoading && (
-                  <PrimaryButton onClick={handleGenerateInterviewPrep} disabled={!result}
-                    className="h-10 px-4 text-[14px] disabled:cursor-not-allowed disabled:opacity-40">
-                    {interviewQuestions ? 'Regenerate' : 'Generate questions'}
-                  </PrimaryButton>
-                )}
-              />
-
-              {(interviewLoading || interviewError || interviewQuestions) && (
-                <div className="mt-6 flex flex-col gap-3">
-                  {/* Loading */}
-                  {interviewLoading && <WorkingNote>Generating your questions…</WorkingNote>}
-
-                  {/* Error */}
-                  {interviewError && <ErrorNote>{interviewError}</ErrorNote>}
-
-                  {/* Question Cards */}
-                  {interviewQuestions && (
-                    <ol className="anim-fade-up flex flex-col gap-3">
-                      {interviewQuestions.map((q, i) => {
-                        const catColor = q.category === 'Behavioral'
-                          ? { bg: TOOLS.interview.tint, color: TOOLS.interview.deep }
-                          : q.category === 'Technical'
-                          ? { bg: '#E3EEFF', color: '#1E40AF' }
-                          : { bg: TOOLS.cover.tint, color: TOOLS.cover.deep }
-                        return (
-                          <li key={i}>
-                            <Surface className="p-5 sm:p-6">
-                              {/* Category + number */}
-                              <div className="mb-3 flex items-center gap-2">
-                                <span className="text-[13px] font-medium tabular-nums" style={{ color: MUTED }}>Q{i + 1}</span>
-                                <span className="rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-                                  style={{ background: catColor.bg, color: catColor.color }}>
-                                  {q.category}
-                                </span>
-                              </div>
-                              {/* Question */}
-                              <p className="text-[16px] font-medium" style={{ color: INK, lineHeight: 1.5, letterSpacing: '-0.01em' }}>
-                                {q.question}
-                              </p>
-                              {/* Tip */}
-                              <div className="mt-4 flex gap-3 rounded-[12px] p-4" style={{ background: MIST }}>
-                                <Lightbulb className="mt-0.5 size-4 shrink-0" style={{ color: TOOLS.interview.strong }} aria-hidden />
-                                <p className="text-[14px] leading-[1.6]" style={{ color: TEXT }}>
-                                  <span className="font-medium" style={{ color: INK }}>Tip: </span>
-                                  {q.tip}
-                                </p>
-                              </div>
-                            </Surface>
-                          </li>
-                        )
-                      })}
-                    </ol>
-                  )}
-                </div>
-              )}
-            </Stage>
-
+            <div className="mt-12">
+              <NextSteps onPick={openTool} statusFor={proStatus} />
+            </div>
             {/* ── Re-analyze Panel ── */}
             <div className="no-print mt-10">
               {/* Toggle header */}
@@ -1287,11 +960,59 @@ export default function AnalyzePage() {
                       onClick={handleReanalyze}
                       disabled={reanalyzing || !reanalyzeFile}
                       className="h-12 min-w-[220px] px-8 text-[16px] disabled:cursor-not-allowed disabled:opacity-40">
-                      {reanalyzing ? 'Re-analyzing…' : 'Re-analyze'}
+                      {reanalyzing ? <>Re-checking <Dots /></> : 'Re-check my resume'}
                     </PrimaryButton>
                   </div>
                 </Stage>
               )}
+            </div>
+            </div>
+            )}
+
+            {activeTool === 'cover' && (
+              <CoverLetterPanel
+                access={toolAccess('cover')}
+                status={proStatus('cover')}
+                letter={coverLetter}
+                loading={coverLetterLoading}
+                error={coverLetterError}
+                onGenerate={handleGenerateCoverLetter}
+                copied={coverLetterCopied}
+                onCopy={handleCopyCoverLetter}
+                downloading={coverLetterDownloading}
+                onDownload={handleDownloadCoverLetter}
+              />
+            )}
+
+            {activeTool === 'outreach' && (
+              <OutreachPanel
+                access={toolAccess('outreach')}
+                status={proStatus('outreach')}
+                result={outreachResult}
+                loading={outreachLoading}
+                error={outreachError}
+                onGenerate={handleGenerateOutreach}
+                copied={outreachCopied}
+                onCopy={handleCopyOutreach}
+                mode={outreachMode}
+                onModeChange={setOutreachMode}
+                recruiterName={recruiterName}
+                onRecruiterName={setRecruiterName}
+                companyName={companyName}
+                onCompanyName={setCompanyName}
+              />
+            )}
+
+            {activeTool === 'interview' && (
+              <InterviewPanel
+                access={toolAccess('interview')}
+                status={proStatus('interview')}
+                questions={interviewQuestions}
+                loading={interviewLoading}
+                error={interviewError}
+                onGenerate={handleGenerateInterviewPrep}
+              />
+            )}
             </div>
 
           </div>

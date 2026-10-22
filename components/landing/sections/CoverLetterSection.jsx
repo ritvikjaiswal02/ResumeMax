@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Check, Copy, Download, LoaderCircle } from 'lucide-react'
+import { Check, Copy, Download } from 'lucide-react'
+import { Spinner } from '@/components/landing/Loader'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { SectionHeader, Stage, Surface, SecondaryButton, useInView } from '@/components/landing/primitives'
@@ -513,7 +514,7 @@ export default function CoverLetterSection() {
                 {copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy letter'}
               </SecondaryButton>
               <SecondaryButton onClick={handleDownload} aria-busy={pdfBusy} className={actionClass}>
-                {pdfBusy ? <LoaderCircle aria-hidden className="animate-spin" /> : <Download aria-hidden />}
+                {pdfBusy ? <Spinner size={16} color="currentColor" track={null} /> : <Download aria-hidden />}
                 {pdfBusy ? 'Creating PDF' : pdfFailed ? 'Try again' : 'Download PDF'}
               </SecondaryButton>
             </div>

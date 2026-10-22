@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Plus, RotateCcw, SearchX } from 'lucide-react'
+import { ArrowLeft, Plus, RotateCcw, SearchX } from 'lucide-react'
+import { PageLoader } from '@/components/landing/Loader'
 import { useAuth } from '@/hooks/useAuth'
 import AnalysisResults from '@/components/AnalysisResults'
 import PortfolioResults from '@/components/PortfolioResults'
@@ -90,9 +91,7 @@ export default function AnalysisDetailPage() {
 
         {/* Loading */}
         {loading && (
-          <div className="flex items-center justify-center py-32" role="status" aria-label="Loading analysis">
-            <Loader2 className="size-7 animate-spin" style={{ color: MUTED }} aria-hidden />
-          </div>
+          <PageLoader label="Opening your check" />
         )}
 
         {/* Not found */}

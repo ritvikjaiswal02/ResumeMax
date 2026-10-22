@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, CircleAlert, Github, Globe, Lock, Target } from 'lucide-react'
+import { ChevronDown, CircleAlert, FolderGit2, Gauge, Github, Globe, ListChecks, Lock, Pencil, Sparkles, Target } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { analyzePortfolio, getUsage } from '@/lib/api'
 import { TARGET_ROLES } from '@/lib/constants'
@@ -10,6 +10,7 @@ import PortfolioResults from '@/components/PortfolioResults'
 import AppNav from '@/components/landing/AppNav'
 import { PrimaryButton, SecondaryButton, Stage, Surface, ToolTag } from '@/components/landing/primitives'
 import { INK, LINE, MIST, MUTED, TEXT, TOOLS } from '@/components/landing/tokens'
+import { ProgressSteps, Skeleton } from '@/components/landing/Loader'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -43,19 +44,25 @@ function FieldIcon({ Icon }) {
   )
 }
 
-function LoadingState({ message }) {
+function FormSkeleton() {
   return (
-    <Surface className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center sm:py-20" role="status">
-      <svg className="spin size-9" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <circle cx="12" cy="12" r="9" stroke={TOOL.tint} strokeWidth="3" />
-        <circle cx="12" cy="12" r="9" stroke={TOOL.strong} strokeWidth="3" strokeDasharray="14 42" strokeLinecap="round" />
-      </svg>
-      <p className="text-[14.5px]" style={{ color: TEXT }}>
-        {message}
-      </p>
+    <Surface className="flex flex-col gap-6 p-5 sm:p-7" role="status" aria-label="Loading your account">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex flex-col gap-2.5">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-12 w-full rounded-[12px]" />
+        </div>
+      ))}
+      <Skeleton className="h-12 w-full" style={{ background: TOOL.tint }} />
     </Surface>
   )
 }
+
+const FEATURES = [
+  { Icon: Gauge, title: 'A score out of 100', copy: 'Weighted across your profile, projects, skills and site.' },
+  { Icon: FolderGit2, title: 'Repo-by-repo fixes', copy: 'What a reviewer sees in each repo, and what to change.' },
+  { Icon: ListChecks, title: 'A 5-step plan', copy: 'The changes that move your score most, in order.' },
+]
 
 function LockedState() {
   return (
@@ -79,39 +86,17 @@ function LockedState() {
   )
 }
 
-function ReportInputs({ githubUsername, portfolioUrl, targetRole, onEdit }) {
-  const items = [
-    { label: 'GitHub username', value: githubUsername, Icon: Github },
-    { label: 'Portfolio site', hint: 'Optional', value: portfolioUrl || 'Not added', empty: !portfolioUrl, Icon: Globe },
-    { label: 'Target role', value: targetRole, Icon: Target },
-  ]
-
+function ReportMeta({ portfolioUrl, targetRole }) {
+  const chip = 'inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-[13.5px] font-medium'
   return (
-    <Surface className="p-2.5 sm:p-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
-        <dl className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
-          {items.map(({ label, hint, value, empty, Icon }) => (
-            <div
-              key={label}
-              className="min-w-0 rounded-[12px] border px-3.5 pb-2.5 pt-2"
-              style={{ background: MIST, borderColor: LINE }}
-            >
-              <dt className="flex items-center justify-between gap-3 text-[12.5px] leading-5" style={{ color: MUTED }}>
-                {label}
-                {hint && <span>{hint}</span>}
-              </dt>
-              <dd className="mt-1 flex min-w-0 items-center gap-2 text-[15px] leading-6" style={{ color: empty ? MUTED : INK }}>
-                <Icon aria-hidden className="size-4 shrink-0" strokeWidth={1.75} style={{ color: TEXT }} />
-                <span className="truncate">{value}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <SecondaryButton onClick={onEdit} className="h-11 shrink-0 md:h-auto md:self-stretch md:rounded-[12px]">
-          Edit details
-        </SecondaryButton>
-      </div>
-    </Surface>
+    <div className="mt-4 flex flex-wrap gap-2">
+      <span className={chip} style={{ background: MIST, color: INK }}>
+        <Target aria-hidden className="size-3.5 shrink-0" /> <span className="truncate">{targetRole}</span>
+      </span>
+      <span className={chip} style={{ background: MIST, color: portfolioUrl ? INK : MUTED }}>
+        <Globe aria-hidden className="size-3.5 shrink-0" /> <span className="truncate">{portfolioUrl || 'No portfolio site'}</span>
+      </span>
+    </div>
   )
 }
 
@@ -185,32 +170,54 @@ export default function PortfolioPage() {
     <div className="rmx min-h-screen bg-white">
       <AppNav active="portfolio" user={user} usage={usage} onSignOut={signOut} loading={authLoading} />
 
-      <main className="mx-auto max-w-[1080px] px-4 pb-20 pt-10 sm:px-8 sm:pt-14">
+      <main className="mx-auto max-w-[1200px] px-5 pb-24 pt-10 sm:px-8 sm:pt-16">
         {!result ? (
-          <div className="mx-auto max-w-[760px]">
-            <div className="max-w-[600px]">
+          <div className="anim-fade-up grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,540px)] lg:items-start lg:gap-16">
+            <div className="lg:pt-6">
               <ToolTag tool="portfolio" />
               <h1
-                className="mt-4 font-medium"
-                style={{ color: INK, fontSize: 'clamp(30px, 5vw, 44px)', lineHeight: 1.06, letterSpacing: '-0.035em' }}
+                className="mt-5 font-medium"
+                style={{ color: INK, fontSize: 'clamp(38px, 5.4vw, 68px)', lineHeight: 1, letterSpacing: '-0.045em', textWrap: 'balance' }}
               >
-                Review your GitHub and portfolio
+                Make your GitHub look like someone worth hiring.
               </h1>
-              <p className="mt-4 text-[16px] leading-[1.6] sm:text-[17px]" style={{ color: MUTED }}>
-                Enter your username and the role you want. You’ll get a score, repo-by-repo fixes and a 5-step plan for what to change first.
+              <p className="mt-5 max-w-[34rem] text-[17px] leading-[1.6] sm:text-[18px]" style={{ color: MUTED }}>
+                For tech roles, recruiters open your GitHub before they call you. Enter your username and the role you want to see what they see.
               </p>
+              <ul className="mt-10 grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
+                {FEATURES.map(({ Icon, title, copy }) => (
+                  <li key={title} className="flex gap-4">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-[14px]" style={{ background: TOOL.tint, color: TOOL.deep }}>
+                      <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+                    </span>
+                    <span>
+                      <span className="block text-[15.5px] font-medium" style={{ color: INK }}>{title}</span>
+                      <span className="mt-0.5 block text-[14px] leading-[1.5]" style={{ color: MUTED }}>{copy}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <Stage tool="portfolio" className="mt-8 sm:mt-10">
+            <Stage tool="portfolio" className="lg:p-8">
               {usageLoading ? (
-                <LoadingState message="Loading your account..." />
+                <FormSkeleton />
               ) : usage && !canUse ? (
                 <LockedState />
               ) : loading ? (
-                <LoadingState message="Fetching your GitHub data and reviewing your projects..." />
+                <div className="flex justify-center py-4">
+                  <ProgressSteps
+                    tool="portfolio"
+                    title={`Reviewing @${githubUsername.trim()}`}
+                    steps={['Finding your GitHub profile', 'Reading your top repos', 'Checking READMEs and commits', `Matching skills to ${targetRole}`, 'Writing your 5-step plan']}
+                    expected={25}
+                  />
+                </div>
               ) : (
                 <Surface className="p-5 sm:p-7">
-                  <form className="space-y-5" onSubmit={handleSubmit}>
+                  <p className="text-[18px] font-medium" style={{ color: INK, letterSpacing: '-0.02em' }}>Review my portfolio</p>
+                  <p className="mt-1 text-[14px]" style={{ color: MUTED }}>Takes about 25 seconds. Public repos only.</p>
+                  <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
                     <div className="space-y-2">
                       <Label htmlFor="github-username" className="text-[14px] font-medium text-[#0D0F0E]">
                         GitHub username
@@ -290,11 +297,12 @@ export default function PortfolioPage() {
                       </div>
                     )}
 
-                    <PrimaryButton type="submit" disabled={loading} className="h-12 w-full">
-                      {loading ? 'Reviewing...' : 'Review my portfolio'}
+                    <PrimaryButton type="submit" disabled={loading} className="h-12 w-full gap-2">
+                      <Sparkles aria-hidden className="size-4" />
+                      Review my portfolio
                     </PrimaryButton>
                     {!isPro && (
-                      <p className="text-center text-[13.5px]" style={{ color: MUTED }}>
+                      <p className="text-center text-[13.5px]" style={{ color: TOOL.deep }}>
                         {freeLeft} free {freeLeft === 1 ? 'review' : 'reviews'} left. No card needed.
                       </p>
                     )}
@@ -305,31 +313,26 @@ export default function PortfolioPage() {
           </div>
         ) : (
           <div className="anim-fade-up">
-            <div className="max-w-[640px]">
-              <ToolTag tool="portfolio" />
-              <h1
-                className="mt-4 break-words font-medium"
-                style={{ color: INK, fontSize: 'clamp(28px, 4.5vw, 40px)', lineHeight: 1.08, letterSpacing: '-0.035em' }}
-              >
-                Portfolio review for @{githubUsername}
-              </h1>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0 max-w-[720px]">
+                <ToolTag tool="portfolio" />
+                <h1
+                  className="mt-4 break-words font-medium"
+                  style={{ color: INK, fontSize: 'clamp(30px, 4.5vw, 48px)', lineHeight: 1.04, letterSpacing: '-0.04em' }}
+                >
+                  @{githubUsername}
+                </h1>
+                <ReportMeta portfolioUrl={portfolioUrl.trim()} targetRole={targetRole} />
+              </div>
+              <SecondaryButton onClick={resetAnalysis} className="h-10 gap-1.5 self-start px-4 text-[14px] sm:self-auto">
+                <Pencil aria-hidden className="size-4" />
+                Edit and re-run
+              </SecondaryButton>
             </div>
 
-            <Stage tool="portfolio" className="mt-8">
-              <div className="flex flex-col gap-3 sm:gap-4">
-                <ReportInputs
-                  githubUsername={githubUsername}
-                  portfolioUrl={portfolioUrl.trim()}
-                  targetRole={targetRole}
-                  onEdit={resetAnalysis}
-                />
-                <PortfolioResults
-                  result={result}
-                  githubUsername={githubUsername}
-                  targetRole={targetRole}
-                />
-              </div>
-            </Stage>
+            <div className="mt-8">
+              <PortfolioResults result={result} githubUsername={githubUsername} targetRole={targetRole} />
+            </div>
           </div>
         )}
       </main>

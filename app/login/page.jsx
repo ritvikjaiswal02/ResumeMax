@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { LogoMark } from '@/components/landing/SiteNav'
 import { PrimaryButton, Stage, Surface } from '@/components/landing/primitives'
 import { INK, LINE, MUTED, TEXT, TOOLS, TOOL_ORDER } from '@/components/landing/tokens'
+import { Dots } from '@/components/landing/Loader'
 
 function GoogleIcon() {
   return (
@@ -170,7 +171,7 @@ export default function LoginPage() {
                     className="mt-2 h-12 rounded-[12px] border-[#D5D9D3] bg-white px-4 text-[15px] text-[#0D0F0E] placeholder:text-[#9AA09C] focus-visible:border-[#0D0F0E] focus-visible:ring-0"
                   />
                   <PrimaryButton type="submit" disabled={sending || !email.trim()} className="mt-4 h-12 w-full disabled:opacity-40">
-                    {sending ? 'Sending link…' : 'Email me a sign-in link'}
+                    {sending ? <>Sending link <Dots /></> : 'Email me a sign-in link'}
                   </PrimaryButton>
                 </form>
               )}
