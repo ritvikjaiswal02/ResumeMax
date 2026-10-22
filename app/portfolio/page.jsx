@@ -67,10 +67,10 @@ function LockedState() {
         <Lock aria-hidden className="size-5" strokeWidth={1.75} />
       </div>
       <h2 className="mt-5 text-[22px] font-medium tracking-[-0.02em]" style={{ color: INK }}>
-        Portfolio review is part of Pro
+        You&apos;ve used your free reviews
       </h2>
       <p className="mx-auto mt-2 max-w-[400px] text-[15px] leading-[1.6]" style={{ color: MUTED }}>
-        Upgrade to get a GitHub profile review, repo-by-repo fixes and a plan matched to the role you want.
+        Free accounts get 2 portfolio reviews. Get a Pro Pass to review your GitHub as often as you like.
       </p>
       <PrimaryButton href="/pricing" className="mt-6">
         See Pro plans
@@ -142,10 +142,12 @@ export default function PortfolioPage() {
   }, [authLoading, router, session, user])
 
   const isPro = useMemo(() => usage?.plan === 'pro', [usage])
+  const freeLeft = usage?.free_pro_left?.portfolio ?? 0
+  const canUse = isPro || freeLeft > 0
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!session?.access_token || !isPro) return
+    if (!session?.access_token || !canUse) return
 
     setLoading(true)
     setError('')
@@ -160,10 +162,13 @@ export default function PortfolioPage() {
       )
       setResult(data)
       setGithubUsername(cleanedUsername)
+      if (!isPro) {
+        setUsage((u) => (u ? { ...u, free_pro_left: { ...u.free_pro_left, portfolio: Math.max(0, freeLeft - 1) } } : u))
+      }
     } catch (err) {
       const message = normalizeError(err)
       if ((err?.error || err?.message) === 'pro_required') {
-        setUsage((current) => ({ ...(current || {}), plan: 'free' }))
+        setUsage((current) => ({ ...(current || {}), plan: 'free', free_pro_left: { ...(current?.free_pro_left || {}), portfolio: 0 } }))
       }
       setError(message)
     } finally {
@@ -199,7 +204,7 @@ export default function PortfolioPage() {
             <Stage tool="portfolio" className="mt-8 sm:mt-10">
               {usageLoading ? (
                 <LoadingState message="Loading your account..." />
-              ) : usage && !isPro ? (
+              ) : usage && !canUse ? (
                 <LockedState />
               ) : loading ? (
                 <LoadingState message="Fetching your GitHub data and reviewing your projects..." />
@@ -288,6 +293,11 @@ export default function PortfolioPage() {
                     <PrimaryButton type="submit" disabled={loading} className="h-12 w-full">
                       {loading ? 'Reviewing...' : 'Review my portfolio'}
                     </PrimaryButton>
+                    {!isPro && (
+                      <p className="text-center text-[13.5px]" style={{ color: MUTED }}>
+                        {freeLeft} free {freeLeft === 1 ? 'review' : 'reviews'} left. No card needed.
+                      </p>
+                    )}
                   </form>
                 </Surface>
               )}

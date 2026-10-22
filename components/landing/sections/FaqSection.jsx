@@ -26,8 +26,8 @@ const FAQS = [
     answer: (
       <p>
         Yes. You get 5 resume checks every month, each with the full result: your score, missing keywords, rewritten
-        bullets and formatting checks. The count resets each month. Cover letters, cold outreach, interview prep and
-        portfolio review need a Pro Pass.
+        bullets and formatting checks. The count resets each month. You also get 2 free tries of every Pro tool:
+        cover letters, cold outreach, interview prep and portfolio review. After that, they need a Pro Pass.
       </p>
     ),
   },

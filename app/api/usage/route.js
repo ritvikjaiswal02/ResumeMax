@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { getEffectivePlan } from '@/lib/plan'
+import { getEffectivePlan, freeUsesLeft, FREE_PRO_LIMIT, PRO_TOOLS } from '@/lib/plan'
 
 export async function GET(request) {
   const token = request.headers.get('authorization')?.split(' ')[1]
@@ -12,11 +12,11 @@ export async function GET(request) {
 
   let { data: profile } = await supabase
     .from('profiles')
-    .select('analyses_used, plan, plan_id, plan_expires_at, free_pro_used, bonus_analyses, referral_code')
+    .select('analyses_used, plan, plan_id, plan_expires_at, free_pro_uses, bonus_analyses, referral_code')
     .eq('id', user.id)
     .single()
 
-  if (!profile) profile = { analyses_used: 0, plan: 'free', plan_id: null, plan_expires_at: null, free_pro_used: false, bonus_analyses: 0, referral_code: null }
+  if (!profile) profile = { analyses_used: 0, plan: 'free', plan_id: null, plan_expires_at: null, free_pro_uses: {}, bonus_analyses: 0, referral_code: null }
 
   /* ── Auto-expire: if plan_expires_at is in the past, downgrade to free ── */
   const effectivePlan = getEffectivePlan(profile)
@@ -38,7 +38,8 @@ export async function GET(request) {
     plan:            effectivePlan,
     plan_id:         profile.plan_id,
     plan_expires_at: profile.plan_expires_at,
-    free_pro_used:   profile.free_pro_used ?? false,
+    free_pro_left:   Object.fromEntries(PRO_TOOLS.map((t) => [t, freeUsesLeft(profile, t)])),
+    free_pro_limit:  FREE_PRO_LIMIT,
     bonus_analyses:  bonus,
     referral_code:   profile.referral_code ?? null,
     limit:           5 + bonus,

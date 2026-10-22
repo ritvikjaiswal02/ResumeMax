@@ -460,8 +460,10 @@ export default function AnalyzePage() {
   }, [session])
 
   // The Pro routes spend the free use server-side; this only updates the UI.
-  const markFreeTrialUsed = () => {
-    setUsage(prev => prev ? { ...prev, free_pro_used: true } : prev)
+  const freeLeft = (tool) => usage?.free_pro_left?.[tool] ?? 0
+  const canUseTool = (tool) => usage?.plan === 'pro' || freeLeft(tool) > 0
+  const markFreeTrialUsed = (tool) => {
+    setUsage(prev => prev ? { ...prev, free_pro_left: { ...prev.free_pro_left, [tool]: Math.max(0, (prev.free_pro_left?.[tool] ?? 0) - 1) } } : prev)
   }
 
   const handleAnalyze = async () => {
@@ -494,7 +496,7 @@ export default function AnalyzePage() {
 
   const handleGenerateCoverLetter = async () => {
     if (!session) { setShowAuthModal(true); return }
-    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    const canUsePro = canUseTool('cover')
     if (!canUsePro) { router.push('/pricing'); return }
 
     setCoverLetterError(''); setCoverLetter(null); setCoverLetterLoading(true)
@@ -513,7 +515,7 @@ export default function AnalyzePage() {
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setCoverLetter(data.coverLetter)
-        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
+        if (usage?.plan !== 'pro') markFreeTrialUsed('cover')
       }
     } catch {
       setCoverLetterError('Could not reach the server. Please try again.')
@@ -531,7 +533,7 @@ export default function AnalyzePage() {
 
   const handleGenerateOutreach = async () => {
     if (!session) { setShowAuthModal(true); return }
-    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    const canUsePro = canUseTool('outreach')
     if (!canUsePro) { router.push('/pricing'); return }
     setOutreachError(''); setOutreachResult(null); setOutreachLoading(true)
     try {
@@ -551,7 +553,7 @@ export default function AnalyzePage() {
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setOutreachResult(data)
-        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
+        if (usage?.plan !== 'pro') markFreeTrialUsed('outreach')
       }
     } catch {
       setOutreachError('Could not reach the server. Please try again.')
@@ -572,7 +574,7 @@ export default function AnalyzePage() {
 
   const handleGenerateInterviewPrep = async () => {
     if (!session) { setShowAuthModal(true); return }
-    const canUsePro = usage?.plan === 'pro' || usage?.free_pro_used === false
+    const canUsePro = canUseTool('interview')
     if (!canUsePro) { router.push('/pricing'); return }
     setInterviewError(''); setInterviewQuestions(null); setInterviewLoading(true)
     try {
@@ -589,7 +591,7 @@ export default function AnalyzePage() {
         if (res.status === 403) getUsage(session.access_token).then(setUsage)
       } else {
         setInterviewQuestions(data.questions)
-        if (usage?.plan !== 'pro' && usage?.free_pro_used === false) markFreeTrialUsed()
+        if (usage?.plan !== 'pro') markFreeTrialUsed('interview')
       }
     } catch {
       setInterviewError('Could not reach the server. Please try again.')
@@ -722,8 +724,13 @@ export default function AnalyzePage() {
   const bothReady  = !!resumeFile && jobDescription.trim().length > 0
   const canAnalyze = bothReady && !loading && !atLimit
 
-  const proStatus = usage && usage.plan !== 'pro' && usage.free_pro_used === false ? '1 free use' : null
-  const proActionLabel = usage?.plan === 'pro' ? 'Generate' : usage?.free_pro_used === false ? 'Generate for free' : 'Unlock Pro'
+  const proStatus = (tool) => {
+    if (!usage || usage.plan === 'pro') return null
+    const left = freeLeft(tool)
+    return left > 0 ? `${left} free ${left === 1 ? 'try' : 'tries'} left` : 'Free tries used'
+  }
+  const proActionLabel = (tool) => usage?.plan === 'pro' ? 'Generate' : freeLeft(tool) > 0 ? 'Generate for free' : 'Unlock Pro'
+  const anyFreeLeft = ['cover', 'outreach', 'interview', 'portfolio'].some((t) => freeLeft(t) > 0)
 
   return (
     <div ref={topRef} className="rmx min-h-screen bg-white" style={{ color: INK }}>
@@ -897,28 +904,28 @@ export default function AnalyzePage() {
             {/* ── Free Pro Trial Banner ── */}
             {usage && usage.plan !== 'pro' && (
               <div className="mt-12 flex flex-col gap-4 rounded-[18px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-                style={usage.free_pro_used === false
+                style={anyFreeLeft
                   ? { background: TOOLS.resume.tint }
                   : { background: MIST, boxShadow: `inset 0 0 0 1px ${LINE}` }}>
                 <div className="flex items-start gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white"
-                    style={{ color: usage.free_pro_used === false ? TOOLS.resume.deep : INK }}>
-                    {usage.free_pro_used === false ? <Gift className="size-4" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+                    style={{ color: anyFreeLeft ? TOOLS.resume.deep : INK }}>
+                    {anyFreeLeft ? <Gift className="size-4" aria-hidden /> : <Lock className="size-4" aria-hidden />}
                   </span>
                   <div>
-                    <p className="text-[15px] font-medium" style={{ color: usage.free_pro_used === false ? TOOLS.resume.deep : INK }}>
-                      {usage.free_pro_used === false
-                        ? 'You have 1 free Pro use. Try any tool below.'
-                        : 'Free trial used. Upgrade to unlock Pro tools.'}
+                    <p className="text-[15px] font-medium" style={{ color: anyFreeLeft ? TOOLS.resume.deep : INK }}>
+                      {anyFreeLeft
+                        ? 'You get 2 free tries of every Pro tool.'
+                        : 'Free tries used. Get a Pro Pass to keep going.'}
                     </p>
-                    <p className="mt-0.5 text-[13.5px]" style={{ color: usage.free_pro_used === false ? TOOLS.resume.deep : MUTED }}>
-                      {usage.free_pro_used === false
-                        ? 'Cover letter, cold outreach or interview prep. Pick one, no card needed.'
+                    <p className="mt-0.5 text-[13.5px]" style={{ color: anyFreeLeft ? TOOLS.resume.deep : MUTED }}>
+                      {anyFreeLeft
+                        ? 'Cover letters, cold outreach, interview prep and portfolio review. No card needed.'
                         : 'Plans start at ₹99. One-time payment, no subscription.'}
                     </p>
                   </div>
                 </div>
-                {usage.free_pro_used !== false && (
+                {!anyFreeLeft && (
                   <PrimaryButton
                     onClick={() => router.push('/pricing')}
                     className="h-10 shrink-0 self-start px-4 text-[14px] sm:self-auto">
@@ -935,10 +942,10 @@ export default function AnalyzePage() {
                 id="cover-heading"
                 title="Cover letter"
                 description="Tailored to this job description using your resume."
-                status={proStatus}
+                status={proStatus('cover')}
                 action={!coverLetterLoading && (
                   <PrimaryButton onClick={handleGenerateCoverLetter} className="h-10 px-4 text-[14px]">
-                    {coverLetter ? 'Regenerate' : proActionLabel}
+                    {coverLetter ? 'Regenerate' : proActionLabel('cover')}
                   </PrimaryButton>
                 )}
               />
@@ -1004,11 +1011,11 @@ export default function AnalyzePage() {
                 id="outreach-heading"
                 title="Cold outreach"
                 description="A personalised cold email or LinkedIn DM for this role."
-                status={proStatus}
+                status={proStatus('outreach')}
                 action={!outreachLoading && (
                   <PrimaryButton onClick={handleGenerateOutreach} disabled={!result}
                     className="h-10 px-4 text-[14px] disabled:opacity-40">
-                    {outreachResult ? 'Regenerate' : proActionLabel}
+                    {outreachResult ? 'Regenerate' : proActionLabel('outreach')}
                   </PrimaryButton>
                 )}
               />
@@ -1129,7 +1136,7 @@ export default function AnalyzePage() {
                 id="interview-heading"
                 title="Interview prep"
                 description="Practice questions tailored to this role, with tips from your own resume."
-                status={proStatus}
+                status={proStatus('interview')}
                 action={!interviewLoading && (
                   <PrimaryButton onClick={handleGenerateInterviewPrep} disabled={!result}
                     className="h-10 px-4 text-[14px] disabled:cursor-not-allowed disabled:opacity-40">

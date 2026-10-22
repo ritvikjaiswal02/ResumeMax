@@ -21,6 +21,7 @@ const FREE_FEATURES = [
   'Rewritten bullet points',
   'Formatting checks',
   'Every check saved to your history',
+  '2 free tries of every Pro tool',
 ]
 
 const PRO_TOOLS = [

@@ -26,6 +26,7 @@ function GoogleIcon() {
 const PERKS = [
   '5 resume checks every month, free',
   'Every check saved to your history',
+  '2 free tries of every Pro tool',
   'Re-check against the same job to see your score move',
 ]
 

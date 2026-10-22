@@ -7,7 +7,9 @@ import {
   scrapePortfolio,
 } from '@/lib/github'
 import { TARGET_ROLES, ROLE_PROJECT_MAP, ROLE_SKILL_MAP } from '@/lib/constants'
-import { getEffectivePlan } from '@/lib/plan'
+import { getProAccess, consumeFreeProUse } from '@/lib/plan'
+
+const PRO_REQUIRED = { error: 'pro_required', message: 'Portfolio analysis is a Pro feature' }
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
@@ -31,20 +33,12 @@ export async function POST(request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan, plan_expires_at')
+      .select('plan, plan_expires_at, free_pro_uses')
       .eq('id', user.id)
       .single()
 
-    const effectivePlan = getEffectivePlan(profile)
-    if (effectivePlan !== 'pro') {
-      return NextResponse.json(
-        {
-          error: 'pro_required',
-          message: 'Portfolio analysis is a Pro feature',
-        },
-        { status: 403 }
-      )
-    }
+    const access = getProAccess(profile, 'portfolio')
+    if (!access) return NextResponse.json(PRO_REQUIRED, { status: 403 })
 
     const body = await request.json()
     const githubUsername = body?.github_username?.trim()
@@ -192,6 +186,11 @@ export async function POST(request) {
       deterministicSkillGaps,
       missingProjectTypes
     )
+
+    // Spend a free try only once the report is ready.
+    if (access === 'trial' && !(await consumeFreeProUse(supabase, user.id, 'portfolio'))) {
+      return NextResponse.json(PRO_REQUIRED, { status: 403 })
+    }
 
     try {
       await supabase.from('analyses').insert({

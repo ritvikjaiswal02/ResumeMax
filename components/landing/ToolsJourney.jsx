@@ -131,7 +131,7 @@ export default function ToolsJourney({ children }) {
         </h2>
         <p className="mt-5 max-w-[38rem] text-[18px] leading-[1.6]" style={{ color: MUTED }}>
           Start with a free check. When you&apos;re ready to apply, the Pro tools reuse the same resume and job post to
-          write your cover letter and outreach, prep your interview and review your GitHub. Nothing starts from a blank page.
+          write your cover letter and outreach, prep your interview and review your GitHub. Try each one twice for free.
         </p>
       </div>
 

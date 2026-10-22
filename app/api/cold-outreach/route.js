@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { validatePDFMeta, validatePDFBytes, validateJD, sanitizeString } from '@/lib/validate'
-import { getProAccess, consumeFreeProTrial } from '@/lib/plan'
+import { getProAccess, consumeFreeProUse } from '@/lib/plan'
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
@@ -22,11 +22,11 @@ export async function POST(request) {
     // ── Pro gate ────────────────────────────────────────────────────────
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan, plan_expires_at, free_pro_used')
+      .select('plan, plan_expires_at, free_pro_uses')
       .eq('id', user.id)
       .single()
 
-    const access = getProAccess(profile)
+    const access = getProAccess(profile, 'outreach')
     if (!access) return NextResponse.json(PRO_REQUIRED, { status: 403 })
 
     // ── Parse form data ─────────────────────────────────────────────────
@@ -130,7 +130,7 @@ export async function POST(request) {
 
     // Spend the free Pro use only now that generation succeeded. If a
     // parallel request already spent it, this one gets no result.
-    if (access === 'trial' && !(await consumeFreeProTrial(supabase, user.id))) {
+    if (access === 'trial' && !(await consumeFreeProUse(supabase, user.id, 'outreach'))) {
       return NextResponse.json(PRO_REQUIRED, { status: 403 })
     }
 

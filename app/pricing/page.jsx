@@ -352,7 +352,7 @@ export default function PricingPage() {
             <div>
               <ToolTag tool="resume" />
               <p className="mt-1.5 text-[15px] leading-[1.5]" style={{ color: TEXT }}>
-                Not ready to pay? You get 5 free resume checks every month, with the full result.
+                Not ready to pay? You get 5 free resume checks every month, plus 2 free tries of every Pro tool.
               </p>
             </div>
             <Link
