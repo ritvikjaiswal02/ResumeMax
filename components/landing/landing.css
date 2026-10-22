@@ -1,0 +1,52 @@
+/* ResumeMax 2.0 landing scope. Light theme shadcn tokens live here so the
+   rest of the (dark) app keeps working untouched. */
+.rmx {
+  --background: #ffffff;
+  --foreground: #0d0f0e;
+  --card: #ffffff;
+  --card-foreground: #0d0f0e;
+  --popover: #ffffff;
+  --popover-foreground: #0d0f0e;
+  --primary: #0d0f0e;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f3ef;
+  --secondary-foreground: #0d0f0e;
+  --muted: #f1f3ef;
+  --muted-foreground: #646a66;
+  --accent: #f1f3ef;
+  --accent-foreground: #0d0f0e;
+  --destructive: #f04438;
+  --border: #e3e6e1;
+  --input: #e3e6e1;
+  --ring: #0d0f0e;
+  --radius: 0.875rem;
+
+  font-family: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  background: #ffffff;
+  color: #0d0f0e;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.rmx a:focus-visible,
+.rmx button:focus-visible,
+.rmx [role="tab"]:focus-visible {
+  outline: 2px solid #0d0f0e;
+  outline-offset: 2px;
+}
+
+html:has(.rmx) { color-scheme: light; }
+html:has(.rmx) body { background: #ffffff; }
+html:has(.rmx) body::after { display: none; }
+html:has(.rmx) ::-webkit-scrollbar-track { background: #ffffff; }
+html:has(.rmx) ::-webkit-scrollbar-thumb { background: #d5d9d3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rmx *, .rmx *::before, .rmx *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -3,12 +3,29 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ArrowDown, ArrowUp, ChevronRight, FileText, History as HistoryIcon, Plus, RotateCcw } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import AppNav from '@/components/landing/AppNav'
+import { Surface, PrimaryButton } from '@/components/landing/primitives'
+import { DANGER, INK, MIST, MUTED, SUCCESS, TEXT, TOOLS, WARNING } from '@/components/landing/tokens'
 
 const truncate = (str, n) => str && str.length > n ? str.slice(0, n) + '…' : str
+
+// Darker status shades for small text on tinted pills (AA contrast).
+const INK_SUCCESS = '#067647'
+const INK_WARNING = '#B54708'
+const INK_DANGER = '#B42318'
+
+function alpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
+function band(score) {
+  if (score >= 75) return { color: SUCCESS, ink: INK_SUCCESS }
+  if (score >= 55) return { color: WARNING, ink: INK_WARNING }
+  return { color: DANGER, ink: INK_DANGER }
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -16,152 +33,137 @@ function formatDate(iso) {
   })
 }
 
-/* ── Score ring ───────────────────────────────────────────── */
-function ScoreRing({ score }) {
-  const r = 20
-  const circ = 2 * Math.PI * r
-  const offset = circ - (score / 100) * circ
-  const color = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--gold)' : 'var(--danger)'
+function relativeDate(iso) {
+  const d = new Date(iso)
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return formatDate(iso)
+}
+
+/* ── Score pill ───────────────────────────────────────────── */
+function ScorePill({ score, large }) {
+  const b = band(score)
   return (
-    <svg width="52" height="52" viewBox="0 0 52 52" className="shrink-0">
-      <circle cx="26" cy="26" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="3" />
-      <circle cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="3"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        strokeLinecap="round" transform="rotate(-90 26 26)"
-        style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
-      <text x="26" y="31" textAnchor="middle" fontSize="12" fontWeight="700"
-        fill="var(--foreground)" fontFamily="var(--font-display, Georgia), serif">
-        {score}
-      </text>
-    </svg>
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold tabular-nums ${large ? 'h-10 min-w-[52px] px-3 text-[16px]' : 'h-8 min-w-[44px] px-2.5 text-[14px]'}`}
+      style={{ background: alpha(b.color, 0.14), color: b.ink }}
+    >
+      <span className="sr-only">Score </span>
+      {score}
+    </span>
   )
 }
 
-/* ── Delta pill ───────────────────────────────────────────── */
+/* ── Delta ────────────────────────────────────────────────── */
 function DeltaPill({ delta }) {
   if (delta === null) return null
   if (delta === 0) return (
-    <span className="text-[0.67rem] font-semibold tabular-nums whitespace-nowrap"
-      style={{ color: 'rgba(255,255,255,0.22)' }}>→ 0 pts</span>
+    <span className="text-[13px] tabular-nums whitespace-nowrap" style={{ color: MUTED }}>No change</span>
   )
   const up = delta > 0
+  const Icon = up ? ArrowUp : ArrowDown
   return (
-    <span className="text-[0.67rem] font-bold tabular-nums whitespace-nowrap"
-      style={{ color: up ? 'var(--success)' : 'var(--danger)' }}>
-      {up ? '↑' : '↓'} {up ? '+' : ''}{delta} pts
+    <span className="inline-flex items-center gap-0.5 text-[13px] font-medium tabular-nums whitespace-nowrap"
+      style={{ color: up ? INK_SUCCESS : INK_DANGER }}>
+      <Icon className="size-3.5" aria-hidden />
+      <span className="sr-only">{up ? 'Up' : 'Down'} </span>
+      {Math.abs(delta)} pts
     </span>
   )
 }
 
-/* ── Verdict badge ────────────────────────────────────────── */
-function VerdictBadge({ verdict }) {
+/* ── Verdict ──────────────────────────────────────────────── */
+function VerdictLabel({ verdict }) {
   const map = {
-    strong:     { label: 'Strong',     bg: 'rgba(74,222,128,0.1)',   color: 'var(--success)', border: 'rgba(74,222,128,0.22)' },
-    good:       { label: 'Good',       bg: 'rgba(233,185,76,0.1)',   color: 'var(--gold)',    border: 'rgba(233,185,76,0.22)' },
-    needs_work: { label: 'Needs Work', bg: 'rgba(248,113,113,0.08)', color: 'var(--danger)',  border: 'rgba(248,113,113,0.22)' },
-    poor:       { label: 'Poor',       bg: 'rgba(248,113,113,0.08)', color: 'var(--danger)',  border: 'rgba(248,113,113,0.22)' },
+    strong:     { label: 'Strong',     color: INK_SUCCESS },
+    decent:     { label: 'Decent',     color: INK_WARNING },
+    good:       { label: 'Good',       color: INK_WARNING },
+    needs_work: { label: 'Needs work', color: INK_DANGER },
+    poor:       { label: 'Poor',       color: INK_DANGER },
   }
-  const c = map[verdict] ?? { label: verdict ?? '', bg: 'transparent', color: 'var(--dim)', border: 'var(--border)' }
+  const c = map[verdict] ?? { label: verdict ?? '', color: MUTED }
+  if (!c.label) return null
+  return <span className="font-medium" style={{ color: c.color }}>{c.label}</span>
+}
+
+function TypeBadge({ type }) {
+  const t = type === 'portfolio' ? TOOLS.portfolio : TOOLS.resume
   return (
-    <span className="text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border"
-      style={{ background: c.bg, color: c.color, borderColor: c.border }}>
-      {c.label}
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-medium"
+      style={{ background: t.tint, color: t.deep }}>
+      <span aria-hidden className="size-1.5 rounded-full" style={{ background: t.strong }} />
+      {type === 'portfolio' ? 'Portfolio' : 'Resume'}
     </span>
   )
 }
 
-/* ── Progression banner ───────────────────────────────────── */
+/* ── Progression summary ──────────────────────────────────── */
 function ProgressionBanner({ analyses }) {
-  const chron  = [...analyses].reverse()   // oldest → newest
+  const chron  = [...analyses].reverse()   // oldest first
   const scores = chron.map(a => a.score)
   if (scores.length < 2) return null
 
+  const latest       = scores[scores.length - 1]
   const best         = Math.max(...scores)
   const overallDelta = scores[scores.length - 1] - scores[0]
   const isUp         = overallDelta > 0
   const isDown       = overallDelta < 0
+  const bars         = chron.slice(-20)
 
   return (
-    <div className="mb-10 rounded-2xl border anim-fade-up overflow-hidden"
-      style={{ background: 'var(--surface)', borderColor: 'rgba(255,255,255,0.07)' }}>
+    <Surface className="mb-6 p-5 sm:p-6">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <dl className="grid grid-cols-3 gap-4 sm:gap-8">
+          <div>
+            <dt className="text-[13px]" style={{ color: MUTED }}>Latest</dt>
+            <dd className="mt-1 text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em]" style={{ color: band(latest).ink }}>{latest}</dd>
+          </div>
+          <div>
+            <dt className="text-[13px]" style={{ color: MUTED }}>Best</dt>
+            <dd className="mt-1 text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em]" style={{ color: INK }}>{best}</dd>
+          </div>
+          <div>
+            <dt className="text-[13px]" style={{ color: MUTED }}>Change</dt>
+            <dd className="mt-1 text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em]"
+              style={{ color: isUp ? INK_SUCCESS : isDown ? INK_DANGER : MUTED }}>
+              {isUp ? '+' : ''}{overallDelta}
+            </dd>
+          </div>
+        </dl>
 
-      {/* Top strip */}
-      <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <p className="text-[0.65rem] font-bold tracking-[0.14em] uppercase mb-4"
-          style={{ color: 'var(--dim)' }}>
-          Score History
-        </p>
-
-        {/* Score chain */}
-        <div className="flex items-baseline gap-2 flex-wrap">
-          {chron.map((a, i) => {
-            const isLatest = i === chron.length - 1
-            const scoreColor =
-              isLatest       ? 'var(--gold)'    :
-              a.score >= 70  ? 'var(--success)' :
-              a.score >= 40  ? 'var(--gold)'    : 'var(--danger)'
-
+        <div className="flex h-14 w-full items-end gap-1 sm:w-auto" aria-label="Score history, oldest to newest" role="list">
+          {bars.map((a, i) => {
+            const isLatest = i === bars.length - 1
             return (
-              <div key={a.id} className="flex items-baseline gap-2">
-                <Link href={`/history/${a.id}`}
-                  onClick={e => e.stopPropagation()}
-                  className="tabular-nums font-black leading-none transition-opacity hover:opacity-70"
+              <Link key={a.id} href={`/history/${a.id}`} role="listitem"
+                aria-label={`Score ${a.score} on ${formatDate(a.created_at)}`}
+                title={`${a.score} on ${formatDate(a.created_at)}`}
+                className="flex h-full min-w-[6px] max-w-[14px] flex-1 items-end rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0D0F0E] sm:w-3.5 sm:flex-none">
+                <span className="block w-full rounded-[4px] transition-opacity hover:opacity-70"
                   style={{
-                    color:      scoreColor,
-                    fontSize:   isLatest ? '2.25rem' : '1.75rem',
-                    textShadow: isLatest ? '0 0 28px rgba(233,185,76,0.45)' : 'none',
-                    letterSpacing: '-0.03em',
-                  }}>
-                  {a.score}
-                </Link>
-
-                {i < chron.length - 1 && (
-                  <span className="text-xl font-light select-none"
-                    style={{ color: 'rgba(255,255,255,0.18)' }}>→</span>
-                )}
-              </div>
+                    height: `${Math.max(8, a.score)}%`,
+                    background: isLatest ? band(a.score).color : alpha(band(a.score).color, 0.4),
+                  }} />
+              </Link>
             )
           })}
-
-          {/* Latest label inline */}
-          <span className="text-[0.6rem] font-bold tracking-wider uppercase self-end mb-1.5 ml-1 px-1.5 py-0.5 rounded"
-            style={{ background: 'rgba(233,185,76,0.12)', color: 'var(--gold)' }}>
-            latest
-          </span>
         </div>
       </div>
-
-      {/* Stats row */}
-      <div className="px-6 py-3.5 flex items-center gap-8">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[0.65rem] font-medium" style={{ color: 'var(--dim)' }}>Best Score</span>
-          <span className="text-base font-black tabular-nums" style={{ color: 'var(--success)' }}>{best}</span>
-        </div>
-        <div className="w-px h-4 self-center" style={{ background: 'rgba(255,255,255,0.08)' }} />
-        <div className="flex items-baseline gap-2">
-          <span className="text-[0.65rem] font-medium" style={{ color: 'var(--dim)' }}>Overall Change</span>
-          <span className="text-base font-black tabular-nums"
-            style={{ color: isUp ? 'var(--success)' : isDown ? 'var(--danger)' : 'var(--dim)' }}>
-            {isUp ? '+' : ''}{overallDelta}
-          </span>
-        </div>
-      </div>
-    </div>
+    </Surface>
   )
 }
 
 /* ── Skeleton ─────────────────────────────────────────────── */
-function SkeletonCard() {
+function SkeletonRow() {
   return (
-    <div className="animate-pulse rounded-xl p-5 border"
-      style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'var(--card)' }}>
-      <div className="flex items-center gap-4">
-        <div className="rounded-full shrink-0" style={{ background: 'var(--surface-3)', width: 52, height: 52 }} />
-        <div className="flex-1 space-y-2.5">
-          <div className="h-3.5 rounded w-44" style={{ background: 'var(--surface-3)' }} />
-          <div className="h-2.5 rounded w-28" style={{ background: 'var(--surface-2)' }} />
-          <div className="h-2.5 rounded w-20" style={{ background: 'var(--surface-2)' }} />
-        </div>
+    <div className="flex animate-pulse items-start gap-4 px-5 py-5 sm:px-6">
+      <div className="h-8 w-11 shrink-0 rounded-full" style={{ background: MIST }} />
+      <div className="flex-1 space-y-2.5">
+        <div className="h-3.5 w-2/3 max-w-[260px] rounded-full" style={{ background: '#ECEFEA' }} />
+        <div className="h-3 w-1/3 max-w-[160px] rounded-full" style={{ background: MIST }} />
       </div>
     </div>
   )
@@ -170,7 +172,7 @@ function SkeletonCard() {
 /* ── Main page ────────────────────────────────────────────── */
 export default function HistoryPage() {
   const router = useRouter()
-  const { user, session, loading: authLoading } = useAuth()
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [analyses, setAnalyses] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(false)
@@ -188,7 +190,7 @@ export default function HistoryPage() {
       .catch(() => { setError(true); setLoading(false) })
   }, [session, user, authLoading, router])
 
-  // Delta: newest-first list — card[i] vs card[i+1] (previous chronologically)
+  // Delta: newest-first list — row[i] vs row[i+1] (previous chronologically)
   const getDelta = (i) => {
     if (i >= analyses.length - 1) return null
     return analyses[i].score - analyses[i + 1].score
@@ -197,200 +199,144 @@ export default function HistoryPage() {
   function handleReanalyze(a, e) {
     e.preventDefault()
     e.stopPropagation()
+    if (a.type === 'portfolio') {
+      router.push('/portfolio')
+      return
+    }
     const jd = a.jd_text || a.jd_snippet || ''
     if (jd) sessionStorage.setItem('rl_prefill_jd', jd)
     router.push('/analyze')
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+    <div className="rmx min-h-screen" style={{ background: MIST }}>
+      <AppNav active="history" user={user} onSignOut={signOut} loading={authLoading} />
 
-      {/* Navbar */}
-      <nav className="sticky top-0 z-10 border-b"
-        style={{ background: 'rgba(13,13,17,0.88)', backdropFilter: 'blur(16px)', borderColor: 'rgba(255,255,255,0.06)' }}>
-        <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-7">
-            <Link href="/">
-              <span className="font-display text-xl font-bold tracking-tight">Resume<span style={{ color: 'var(--gold)' }}>Max</span></span>
-            </Link>
-            <Link href="/analyze"
-              className="text-sm font-medium transition-colors hidden sm:block"
-              style={{ color: 'var(--dim)' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--foreground)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--dim)'}>
-              Analyze
-            </Link>
-          </div>
-          {user && (
-            <span className="text-xs hidden sm:block truncate max-w-[200px]"
-              style={{ color: 'var(--dim)' }}>
-              {user.email}
-            </span>
-          )}
-        </div>
-      </nav>
-
-      <main className="max-w-3xl mx-auto px-6 py-14">
+      <main className="mx-auto max-w-[880px] px-4 py-10 sm:px-8 sm:py-14">
 
         {/* Header */}
-        <div className="mb-10 anim-fade-up">
-          <p className="text-[0.68rem] font-bold tracking-[0.16em] uppercase mb-3"
-            style={{ color: 'var(--gold)' }}>
-            History
-          </p>
-          <h1 className="font-display font-black"
-            style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', letterSpacing: '-0.035em', lineHeight: 1.05 }}>
-            Your past analyses
-          </h1>
-          <p className="text-sm mt-3" style={{ color: 'var(--dim)' }}>
-            Track how your resume has improved over time.
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-medium"
+              style={{ color: INK, fontSize: 'clamp(30px, 4vw, 40px)', lineHeight: 1.08, letterSpacing: '-0.035em' }}>
+              History
+            </h1>
+            <p className="mt-2 text-[16px] leading-[1.6]" style={{ color: MUTED }}>
+              Every check you run is saved here, so you can reopen it or run it again.
+            </p>
+          </div>
+          {!loading && !error && analyses.length > 0 && (
+            <PrimaryButton href="/analyze" className="self-start sm:self-auto">
+              <Plus className="size-4" aria-hidden /> New check
+            </PrimaryButton>
+          )}
         </div>
 
         {/* Error */}
         {error && (
-          <div className="p-4 rounded-xl text-sm border mb-8"
-            style={{ background: 'rgba(248,113,113,0.07)', borderColor: 'rgba(248,113,113,0.2)', color: 'var(--danger)' }}>
-            Failed to load history. Please refresh.
+          <div role="alert" className="mb-8 rounded-[14px] border px-4 py-3 text-[14px]"
+            style={{ background: '#FEF3F2', borderColor: '#FECDCA', color: INK_DANGER }}>
+            We couldn&apos;t load your history. Please refresh the page.
           </div>
         )}
 
         {/* Loading */}
         {loading && !error && (
-          <div className="space-y-3">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
+          <Surface className="overflow-hidden" aria-busy="true" aria-label="Loading history">
+            <div className="divide-y divide-[#E3E6E1]">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          </Surface>
         )}
 
         {/* Empty */}
         {!loading && !error && analyses.length === 0 && (
-          <div className="text-center py-28 anim-fade-in">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
-              style={{ background: 'var(--surface-2)', color: 'var(--dim)' }}>
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          <Surface className="px-6 py-14 text-center sm:py-20">
+            <div className="mx-auto mb-5 grid size-12 place-items-center rounded-full"
+              style={{ background: TOOLS.resume.tint, color: TOOLS.resume.deep }}>
+              <HistoryIcon className="size-5" aria-hidden />
             </div>
-            <p className="text-sm mb-6" style={{ color: 'var(--dim)' }}>
-              No analyses yet. Run your first to see history here.
+            <h2 className="text-[20px] font-medium tracking-[-0.02em]" style={{ color: INK }}>
+              No checks yet
+            </h2>
+            <p className="mx-auto mt-2 max-w-[400px] text-[15px] leading-[1.6]" style={{ color: MUTED }}>
+              When you check your resume against a job, the score and feedback land here. Come back any time to see how you&apos;ve improved or to re-run a role.
             </p>
-            <Button asChild className="font-bold"
-              style={{ background: 'var(--gold)', color: '#0d0d11' }}>
-              <Link href="/analyze">Analyze a Resume →</Link>
-            </Button>
-          </div>
+            <PrimaryButton href="/analyze" className="mt-7">
+              <FileText className="size-4" aria-hidden /> Check my resume
+            </PrimaryButton>
+          </Surface>
         )}
 
         {/* Content */}
         {!loading && !error && analyses.length > 0 && (
           <>
-            {/* Progression banner */}
             {analyses.length >= 2 && <ProgressionBanner analyses={analyses} />}
 
-            {/* Cards */}
-            <div className="space-y-2 anim-fade-up">
-              {analyses.map((a, i) => {
-                const delta   = getDelta(i)
-                const isFirst = i === 0
-                const title   = a.job_title || a.resume_name
+            <Surface className="overflow-hidden">
+              <ul className="divide-y divide-[#E3E6E1]">
+                {analyses.map((a, i) => {
+                  const delta   = getDelta(i)
+                  const isFirst = i === 0
+                  const isPortfolio = a.type === 'portfolio'
+                  const title = isPortfolio ? a.resume_name : (a.job_title || a.resume_name)
+                  const subtitle = isPortfolio ? a.jd_snippet : (a.job_title ? a.resume_name : null)
 
-                return (
-                  <Link key={a.id} href={`/history/${a.id}`} className="block group">
-                    <div
-                      className="rounded-xl border transition-all duration-200 cursor-pointer"
-                      style={{
-                        borderColor: isFirst ? 'rgba(233,185,76,0.38)' : 'rgba(255,255,255,0.07)',
-                        background:  isFirst ? 'rgba(233,185,76,0.04)' : 'var(--card)',
-                        padding: isFirst ? '1.25rem 1.375rem' : '1rem 1.25rem',
-                        boxShadow: isFirst ? '0 0 0 1px rgba(233,185,76,0.1), 0 2px 16px rgba(233,185,76,0.06)' : 'none',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(233,185,76,0.45)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = isFirst ? 'rgba(233,185,76,0.38)' : 'rgba(255,255,255,0.07)' }}
-                    >
-                      <div className="flex items-center gap-4">
-
-                        {/* Left: score ring + delta pill stacked */}
-                        <div className="flex flex-col items-center gap-1.5 shrink-0" style={{ minWidth: 52 }}>
-                          <ScoreRing score={a.score} />
-                          <DeltaPill delta={delta} />
-                        </div>
-
-                        {/* Middle: content */}
-                        <div className="flex-1 min-w-0">
-                          {/* Title row */}
-                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <span className="font-semibold text-[0.9375rem] truncate leading-snug group-hover:text-[var(--gold)] transition-colors duration-150">
-                              {truncate(title, 56)}
-                            </span>
-                            {isFirst && (
-                              <span className="text-[0.58rem] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0"
-                                style={{ background: 'rgba(233,185,76,0.12)', color: 'var(--gold)' }}>
-                                Latest
-                              </span>
-                            )}
-                          </div>
-
-                          {/* File name subtitle if job_title present */}
-                          {a.job_title && (
-                            <p className="text-xs truncate mb-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                              {a.resume_name}
-                            </p>
-                          )}
-
-                          {/* Meta row: date + verdict */}
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="text-xs" style={{ color: 'var(--dim)' }}>
-                              {formatDate(a.created_at)}
-                            </span>
-                            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.6rem' }}>•</span>
-                            <VerdictBadge verdict={a.verdict} />
-                          </div>
-
-                          {/* Re-analyze action */}
-                          <button
-                            onClick={e => handleReanalyze(a, e)}
-                            className="mt-2 text-[0.72rem] font-medium block group/reanalyze"
-                            style={{ color: 'rgba(255,255,255,0.28)', transition: 'color 0.15s ease' }}
-                            onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
-                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.28)'}>
-                            <span style={{ textDecoration: 'none', transition: 'text-decoration 0.15s' }}
-                              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-                              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
-                              Re-analyze this role
-                            </span>
-                            <span className="inline-block ml-0.5"
-                              style={{ transition: 'transform 0.18s ease' }}
-                              onMouseEnter={e => e.currentTarget.style.transform = 'translate(2px, -2px)'}
-                              onMouseLeave={e => e.currentTarget.style.transform = 'translate(0,0)'}>
-                              ↗
-                            </span>
-                          </button>
-                        </div>
-
-                        {/* Chevron */}
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          className="shrink-0 transition-colors duration-150"
-                          style={{ color: 'rgba(255,255,255,0.2)' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 18l6-6-6-6" />
-                        </svg>
+                  return (
+                    <li key={a.id}
+                      className="group relative flex items-start gap-3 px-4 py-4 transition-colors hover:bg-[#F8F9F7] sm:gap-4 sm:px-6 sm:py-5">
+                      <div className="flex shrink-0 flex-col items-center gap-1 pt-0.5">
+                        <ScorePill score={a.score} />
+                        <DeltaPill delta={delta} />
                       </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
 
-            {/* Bottom CTA */}
-            <div className="mt-10 pt-8 border-t text-center"
-              style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-              <Button asChild className="font-bold px-6"
-                style={{ background: 'var(--gold)', color: '#0d0d11' }}>
-                <Link href="/analyze">+ New Analysis</Link>
-              </Button>
-            </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <Link href={`/history/${a.id}`}
+                            className="min-w-0 text-[15px] font-medium leading-snug outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:rounded-[18px] focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[#0D0F0E] sm:text-[16px]"
+                            style={{ color: INK }}>
+                            <span className="break-words">{truncate(title, 72)}</span>
+                          </Link>
+                          <TypeBadge type={a.type} />
+                          {isFirst && (
+                            <span className="rounded-full px-2 py-0.5 text-[12px] font-medium" style={{ background: '#F1F3EF', color: TEXT }}>
+                              Latest
+                            </span>
+                          )}
+                        </div>
+
+                        {subtitle && (
+                          <p className="mt-0.5 truncate text-[14px]" style={{ color: MUTED }}>
+                            {subtitle}
+                          </p>
+                        )}
+
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]" style={{ color: MUTED }}>
+                          <time dateTime={a.created_at} title={formatDate(a.created_at)}>{relativeDate(a.created_at)}</time>
+                          {a.verdict && <span aria-hidden>·</span>}
+                          <VerdictLabel verdict={a.verdict} />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={e => handleReanalyze(a, e)}
+                          className="relative z-10 mt-2.5 inline-flex items-center gap-1.5 rounded-full text-[13px] font-medium hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0D0F0E]"
+                          style={{ color: isPortfolio ? TOOLS.portfolio.deep : TOOLS.resume.deep }}>
+                          <RotateCcw className="size-3.5" aria-hidden />
+                          {isPortfolio ? 'Review again' : 'Re-analyze this role'}
+                        </button>
+                      </div>
+
+                      <ChevronRight aria-hidden
+                        className="mt-1.5 size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                        style={{ color: '#A3A9A5' }} />
+                    </li>
+                  )
+                })}
+              </ul>
+            </Surface>
           </>
         )}
       </main>

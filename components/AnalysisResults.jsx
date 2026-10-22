@@ -1,22 +1,67 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CircleCheck,
+  CircleX,
+  Copy,
+  Download,
+  Info,
+  LoaderCircle,
+  Minus,
+  TriangleAlert,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Surface, useReducedMotion } from '@/components/landing/primitives'
+import { DANGER, INK, LINE, MIST, MUTED, SUCCESS, TEXT, TOOLS, WARNING } from '@/components/landing/tokens'
+import { cn } from '@/lib/utils'
+
+const R = TOOLS.resume
+
+// Darker shades of the status colours for small text on white or tinted pills (AA contrast).
+const INK_SUCCESS = '#067647'
+const INK_WARNING = '#B54708'
+const INK_DANGER = '#B42318'
+const MISSING_BG = '#FDE8E7'
+
+function alpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
 
 const stripMarkdown = (t) =>
   t.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
 
-const SEV = {
-  fix:  { color: 'var(--danger)',  raw: '#f87171', bg: 'rgba(248,113,113,0.06)', label: 'Fix'     },
-  warn: { color: 'var(--warn)',    raw: '#fb923c', bg: 'rgba(251,146,60,0.06)',  label: 'Warning' },
-  ok:   { color: 'var(--success)', raw: '#4ade80', bg: 'rgba(74,222,128,0.06)', label: 'Good'    },
+// Score bands: 75+ strong, 55+ good, 35+ needs work, below that poor.
+function band(score) {
+  if (score >= 75) return { color: SUCCESS, ink: INK_SUCCESS, verdict: 'Strong match', note: 'Strong keyword alignment' }
+  if (score >= 55) return { color: WARNING, ink: INK_WARNING, verdict: 'Good match', note: 'Good alignment, a few gaps' }
+  if (score >= 35) return { color: DANGER, ink: INK_DANGER, verdict: 'Needs work', note: 'Several keywords missing' }
+  return { color: DANGER, ink: INK_DANGER, verdict: 'Poor match', note: 'Major keyword gaps found' }
 }
 
-/* ─── Score Ring ─── */
+const STATUS = {
+  error: { Icon: CircleX, color: DANGER, ink: INK_DANGER, label: 'Error' },
+  warning: { Icon: TriangleAlert, color: WARNING, ink: INK_WARNING, label: 'Warning' },
+  good: { Icon: CircleCheck, color: SUCCESS, ink: INK_SUCCESS, label: 'Looks good' },
+}
+
+const SEV = {
+  fix: { ...STATUS.error, label: 'Fix' },
+  warn: STATUS.warning,
+  ok: { ...STATUS.good, label: 'Good' },
+}
+
+const secondaryBtn =
+  'h-9 gap-1.5 rounded-full border border-[#D5D9D3] bg-white px-3.5 text-[13.5px] font-medium text-[#0D0F0E] shadow-none hover:bg-[#F4F6F2] hover:text-[#0D0F0E] focus-visible:ring-2 focus-visible:ring-[#0D0F0E] focus-visible:ring-offset-2'
+
+/* ─── Score ring ─── */
 function ScoreRing({ score, delta }) {
+  const reduce = useReducedMotion()
   const [drawn, setDrawn] = useState(false)
   useEffect(() => {
     setDrawn(false)
@@ -24,106 +69,115 @@ function ScoreRing({ score, delta }) {
     return () => clearTimeout(t)
   }, [score])
 
-  const r      = 52
-  const circ   = 2 * Math.PI * r
-  const offset = drawn ? circ - (score / 100) * circ : circ
-  const raw    = score >= 85 ? '#e9b94c' : score >= 70 ? '#4ade80' : score >= 40 ? '#fb923c' : '#f87171'
-  const verdict = score >= 85 ? 'Strong Match' : score >= 70 ? 'Good Match' : score >= 40 ? 'Needs Work' : 'Poor Match'
+  const r = 40
+  const circ = 2 * Math.PI * r
+  const offset = drawn || reduce ? circ - (score / 100) * circ : circ
+  const b = band(score)
 
-  const deltaColor  = delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--danger)' : 'var(--dim)'
-  const deltaBg     = delta > 0 ? 'rgba(74,222,128,0.1)' : delta < 0 ? 'rgba(248,113,113,0.1)' : 'var(--surface-3)'
-  const deltaBorder = delta > 0 ? 'rgba(74,222,128,0.3)' : delta < 0 ? 'rgba(248,113,113,0.3)' : 'var(--border)'
-  const deltaLabel  = delta > 0 ? `↑ +${delta} pts` : delta < 0 ? `↓ ${delta} pts` : '→ No change'
+  const deltaInk = delta > 0 ? INK_SUCCESS : delta < 0 ? INK_DANGER : MUTED
+  const deltaBg = delta > 0 ? alpha(SUCCESS, 0.13) : delta < 0 ? alpha(DANGER, 0.12) : MIST
+  const DeltaIcon = delta > 0 ? ArrowUp : delta < 0 ? ArrowDown : Minus
+  const deltaLabel = delta > 0 ? `+${delta} points` : delta < 0 ? `${delta} points` : 'No change'
 
   return (
-    <div className="flex items-center gap-5">
-      {/* Ring */}
-      <div className="relative shrink-0">
-        <div className="absolute inset-[-10px] rounded-full pointer-events-none"
-          style={{
-            background: `radial-gradient(circle, ${raw}22 0%, transparent 70%)`,
-            opacity: drawn ? 1 : 0, transition: 'opacity 0.6s ease',
-            animation: drawn ? 'glowPulse 2.4s ease-in-out infinite' : 'none',
-          }} />
-        <svg width="136" height="136" viewBox="0 0 136 136">
-          <circle cx="68" cy="68" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="8" />
-          <circle cx="68" cy="68" r={r}
-            fill="none" stroke={raw} strokeWidth="8"
-            strokeDasharray={circ} strokeDashoffset={offset}
-            strokeLinecap="round" transform="rotate(-90 68 68)"
-            style={{ transition: 'stroke-dashoffset 1.3s cubic-bezier(0.34, 1.4, 0.64, 1)' }} />
-          <text x="68" y="62" textAnchor="middle" fontSize="34" fontWeight="700"
-            fill="var(--foreground)" fontFamily="system-ui, sans-serif"
-            style={{ opacity: drawn ? 1 : 0, transition: 'opacity 0.4s ease 0.3s' }}>
-            {score}
-          </text>
-          <text x="68" y="80" textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
-            / 100
-          </text>
+    <div className="flex items-center gap-4 sm:gap-5">
+      <div className="relative size-[112px] shrink-0">
+        <svg viewBox="0 0 96 96" className="size-full -rotate-90" aria-hidden="true">
+          <circle cx="48" cy="48" r={r} fill="none" stroke={LINE} strokeWidth="8" />
+          <circle
+            cx="48"
+            cy="48"
+            r={r}
+            fill="none"
+            stroke={b.color}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            style={{ transition: reduce ? 'none' : 'stroke-dashoffset 900ms cubic-bezier(.33,1,.68,1)' }}
+          />
         </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[32px] font-medium leading-none tracking-[-0.03em] tabular-nums" style={{ color: INK }}>
+            {score}
+          </span>
+          <span className="mt-1 text-[11.5px] leading-none" style={{ color: MUTED }}>
+            of 100
+          </span>
+        </div>
       </div>
 
-      {/* Labels */}
-      <div className="flex flex-col gap-2">
-        <p className="text-[0.68rem] font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--muted-foreground)' }}>
-          ATS Match Score
-        </p>
-        <Badge variant="outline" className="font-bold rounded-full w-fit text-sm px-3 py-0.5"
-          style={{ color: raw, background: raw + '18', borderColor: raw + '35' }}>
-          {verdict}
-        </Badge>
-
-        {/* Delta pill — only shown after re-analysis */}
-        {delta != null && (
+      <div className="min-w-0">
+        <h2 className="text-[13.5px]" style={{ color: MUTED }}>
+          ATS match score
+        </h2>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
           <span
-            className="text-[0.72rem] font-black rounded-full px-2.5 py-0.5 w-fit transition-all duration-500 anim-chip"
-            style={{ color: deltaColor, background: deltaBg, border: `1px solid ${deltaBorder}` }}>
-            {deltaLabel}
+            className="inline-flex h-6 items-center rounded-full px-2.5 text-[13px] font-medium"
+            style={{ background: alpha(b.color, 0.13), color: b.ink }}
+          >
+            {b.verdict}
           </span>
-        )}
 
-        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          {score >= 85 ? 'Excellent keyword alignment'
-            : score >= 70 ? 'Good alignment, a few gaps'
-            : score >= 40 ? 'Several keywords missing'
-            : 'Major keyword gaps found'}
+          {/* Delta pill, only shown after a re-analysis */}
+          {delta != null && (
+            <span
+              className="anim-chip inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12.5px] font-medium tabular-nums"
+              style={{ background: deltaBg, color: deltaInk }}
+            >
+              <DeltaIcon aria-hidden="true" className="size-3.5" />
+              {deltaLabel}
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-[13.5px]" style={{ color: TEXT }}>
+          {b.note}
         </p>
       </div>
     </div>
   )
 }
 
-/* ─── CopyButton ─── */
+/* ─── Copy button ─── */
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
   return (
-    <Button variant="outline" size="sm"
+    <Button
+      variant="outline"
+      size="sm"
+      aria-label={copied ? 'Rewrite copied' : 'Copy suggested rewrite'}
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-      className="shrink-0 h-8 text-xs font-semibold border-border transition-all"
-      style={copied ? { borderColor: 'rgba(74,222,128,0.4)', color: 'var(--success)', background: 'rgba(74,222,128,0.08)' } : {}}>
-      {copied ? '✓ Copied' : 'Copy'}
+      className={cn('no-print h-8 shrink-0 gap-1.5 rounded-full border bg-white px-3 text-[12.5px] font-medium shadow-none hover:bg-white focus-visible:ring-2 focus-visible:ring-[#0D0F0E] focus-visible:ring-offset-2')}
+      style={copied
+        ? { borderColor: alpha(SUCCESS, 0.45), color: INK_SUCCESS }
+        : { borderColor: alpha(R.deep, 0.25), color: R.deep }}
+    >
+      {copied ? <Check aria-hidden="true" className="size-3.5" /> : <Copy aria-hidden="true" className="size-3.5" />}
+      <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
     </Button>
   )
 }
 
 /* ─── Section header ─── */
-function SectionTitle({ children, count, countColor, sub }) {
+function SectionTitle({ children, count, sub, extra }) {
   return (
-    <div className="flex items-start justify-between mb-5 gap-4">
-      <div className="flex items-center gap-3">
-        <div className="w-1 h-6 rounded-full shrink-0" style={{ background: countColor ?? 'var(--gold)' }} />
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-bold tracking-tight">{children}</h2>
-            {count != null && (
-              <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
-                style={{ color: countColor, background: countColor + '18', borderColor: countColor + '30' }}>
-                {count}
-              </Badge>
-            )}
-          </div>
-          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>}
+    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-[17px] font-medium tracking-[-0.01em]" style={{ color: INK }}>
+            {children}
+          </h2>
+          {count != null && (
+            <span
+              className="inline-flex h-5 items-center rounded-full px-2 text-[12px] font-medium tabular-nums"
+              style={{ background: MIST, color: TEXT, boxShadow: `inset 0 0 0 1px ${LINE}` }}
+            >
+              {count}
+            </span>
+          )}
+          {extra}
         </div>
+        {sub && <p className="mt-1 text-[13.5px]" style={{ color: MUTED }}>{sub}</p>}
       </div>
     </div>
   )
@@ -133,26 +187,24 @@ function SectionTitle({ children, count, countColor, sub }) {
 function buildReportText(result) {
   const matched = result.keywords?.matched ?? []
   const missing = result.keywords?.missing ?? []
-  const verdict = result.score >= 85 ? 'Strong Match'
-    : result.score >= 70 ? 'Good Match'
-    : result.score >= 40 ? 'Needs Work' : 'Poor Match'
-  const hr   = '─'.repeat(48)
+  const verdict = band(result.score).verdict
+  const hr = '─'.repeat(48)
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const lines = [
-    'ResumeMax — ATS Analysis Report', `Generated ${date}`, hr, '',
-    `ATS Match Score: ${result.score}/100 — ${verdict}`, '',
-    `✓ Matched Keywords (${matched.length}): ${matched.join(', ') || 'None'}`,
-    `✗ Missing Keywords (${missing.length}): ${missing.join(', ') || 'None'}`, '',
+    'ResumeMax ATS analysis report', `Generated ${date}`, hr, '',
+    `ATS match score: ${result.score}/100 (${verdict})`, '',
+    `Matched keywords (${matched.length}): ${matched.join(', ') || 'None'}`,
+    `Missing keywords (${missing.length}): ${missing.join(', ') || 'None'}`, '',
   ]
   if (result.rewrites?.length > 0) {
-    lines.push(hr, 'SUGGESTED REWRITES', hr, '')
+    lines.push(hr, 'Suggested rewrites', hr, '')
     result.rewrites.forEach((rw, i) => {
-      lines.push(`${i + 1}. BEFORE:`, `   ${stripMarkdown(rw.original)}`, '', `   AFTER:`, `   ${stripMarkdown(rw.rewritten)}`, '')
+      lines.push(`${i + 1}. Before:`, `   ${stripMarkdown(rw.original)}`, '', `   After:`, `   ${stripMarkdown(rw.rewritten)}`, '')
     })
   }
   if (result.insights?.length > 0) {
-    lines.push(hr, 'INSIGHTS', hr, '')
-    result.insights.forEach(ins => { lines.push(`[${(ins.severity ?? 'info').toUpperCase()}] ${ins.title}`, ins.body, '') })
+    lines.push(hr, 'Insights', hr, '')
+    result.insights.forEach(ins => { lines.push(`[${SEV[ins.severity]?.label ?? 'Info'}] ${ins.title}`, ins.body, '') })
   }
   lines.push(hr, 'Generated by ResumeMax')
   return lines.join('\n')
@@ -161,27 +213,63 @@ function buildReportText(result) {
 function ExportToolbar({ result }) {
   const [copied, setCopied] = useState(false)
   return (
-    <div className="no-print flex items-center justify-end gap-2">
-      <Button variant="outline" size="sm"
+    <div className="no-print flex flex-wrap items-center justify-end gap-2">
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => { navigator.clipboard.writeText(buildReportText(result)); setCopied(true); setTimeout(() => setCopied(false), 2500) }}
-        className="h-8 text-xs font-semibold gap-1.5 border-border transition-all"
-        style={copied ? { borderColor: 'rgba(74,222,128,0.4)', color: 'var(--success)', background: 'rgba(74,222,128,0.08)' } : {}}>
-        {copied ? '✓ Copied!' : 'Copy Report'}
+        className={secondaryBtn}
+        style={copied ? { borderColor: alpha(SUCCESS, 0.45), color: INK_SUCCESS } : undefined}
+      >
+        {copied ? <Check aria-hidden="true" className="size-4" /> : <Copy aria-hidden="true" className="size-4" />}
+        <span aria-live="polite">{copied ? 'Report copied' : 'Copy report'}</span>
       </Button>
-      <Button variant="outline" size="sm" onClick={() => window.print()}
-        className="h-8 text-xs font-semibold gap-1.5 border-border">
+      <Button variant="outline" size="sm" onClick={() => window.print()} className={secondaryBtn}>
+        <Download aria-hidden="true" className="size-4" />
         Save as PDF
       </Button>
     </div>
   )
 }
 
-/* ─── ATS Compatibility Check ─── */
+/* ─── Status row (ATS checks and insights) ─── */
+function StatusRow({ status, title, body, label }) {
+  const { Icon } = status
+  return (
+    <li className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
+      <Icon aria-hidden="true" className="mt-[2px] size-[18px] shrink-0" style={{ color: status.color }} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span
+            className="inline-flex h-5 items-center rounded-full px-2 text-[12px] font-medium"
+            style={{ background: alpha(status.color, 0.13), color: status.ink }}
+          >
+            {label ?? status.label}
+          </span>
+          <span className="text-[14.5px] font-medium leading-snug" style={{ color: INK }}>{title}</span>
+        </div>
+        {body && (
+          <p className="mt-1 text-[14px] leading-[1.6]" style={{ color: TEXT }}>
+            {body}
+          </p>
+        )}
+      </div>
+    </li>
+  )
+}
+
+/* ─── ATS compatibility check ─── */
 const ATS_ORDER = { error: 0, warning: 1, good: 2 }
-const ATS_CFG = {
-  error:   { raw: '#f87171', bg: 'rgba(248,113,113,0.07)', border: 'rgba(248,113,113,0.35)', glow: '0 0 0 1px rgba(248,113,113,0.15)', label: 'Error',   icon: '✕' },
-  warning: { raw: '#fb923c', bg: 'rgba(251,146,60,0.06)',  border: 'rgba(251,146,60,0.28)',  glow: 'none',                            label: 'Warning', icon: '⚠' },
-  good:    { raw: '#4ade80', bg: 'rgba(74,222,128,0.05)',  border: 'rgba(74,222,128,0.15)',  glow: 'none',                            label: 'Good',    icon: '✓' },
+
+function CountPill({ n, word, status }) {
+  return (
+    <span
+      className="inline-flex h-5 items-center rounded-full px-2 text-[12px] font-medium tabular-nums"
+      style={{ background: alpha(status.color, 0.13), color: status.ink }}
+    >
+      {n} {word}{n > 1 ? 's' : ''}
+    </span>
+  )
 }
 
 function AtsSection({ result }) {
@@ -189,127 +277,95 @@ function AtsSection({ result }) {
   const items = result.ats_structure ?? []
   if (!items.length) return null
 
-  const sorted    = [...items].sort((a, b) => (ATS_ORDER[a.type] ?? 1) - (ATS_ORDER[b.type] ?? 1))
-  const nonGood   = sorted.filter(i => i.type !== 'good')
+  const sorted = [...items].sort((a, b) => (ATS_ORDER[a.type] ?? 1) - (ATS_ORDER[b.type] ?? 1))
+  const nonGood = sorted.filter(i => i.type !== 'good')
   const goodItems = sorted.filter(i => i.type === 'good')
-  const visibleGood    = showAllGood ? goodItems : goodItems.slice(0, 2)
+  const visibleGood = showAllGood ? goodItems : goodItems.slice(0, 2)
   const hiddenGoodCount = goodItems.length - 2
 
-  const errorCount   = nonGood.filter(i => i.type === 'error').length
+  const errorCount = nonGood.filter(i => i.type === 'error').length
   const warningCount = nonGood.filter(i => i.type === 'warning').length
 
   return (
-    <div>
-      {/* Section header */}
-      <div className="flex items-start justify-between mb-4 gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-6 rounded-full shrink-0" style={{ background: 'var(--gold)' }} />
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-bold tracking-tight">ATS Compatibility Check</h2>
-              {errorCount > 0 && (
-                <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
-                  style={{ color: '#f87171', background: 'rgba(248,113,113,0.1)', borderColor: 'rgba(248,113,113,0.3)' }}>
-                  {errorCount} error{errorCount > 1 ? 's' : ''}
-                </Badge>
-              )}
-              {warningCount > 0 && (
-                <Badge variant="outline" className="text-[0.7rem] font-bold rounded-full"
-                  style={{ color: '#fb923c', background: 'rgba(251,146,60,0.1)', borderColor: 'rgba(251,146,60,0.3)' }}>
-                  {warningCount} warning{warningCount > 1 ? 's' : ''}
-                </Badge>
-              )}
+    <section>
+      <SectionTitle
+        sub="Based on your resume text. Checks structure and clarity, not visual layout."
+        extra={
+          <>
+            {errorCount > 0 && <CountPill n={errorCount} word="error" status={STATUS.error} />}
+            {warningCount > 0 && <CountPill n={warningCount} word="warning" status={STATUS.warning} />}
+          </>
+        }
+      >
+        ATS structure
+      </SectionTitle>
+
+      <Surface className="p-4 sm:p-6">
+        {result.ats_summary && (
+          <div
+            className="mb-5 flex items-start gap-3 rounded-[12px] px-4 py-3.5"
+            style={{ background: alpha(R.strong, 0.07), boxShadow: `inset 0 0 0 1px ${alpha(R.strong, 0.2)}` }}
+          >
+            <Info aria-hidden="true" className="mt-[2px] size-[18px] shrink-0" style={{ color: R.deep }} />
+            <div className="min-w-0">
+              <p className="text-[14.5px] leading-[1.6]" style={{ color: INK }}>
+                {result.ats_summary}
+              </p>
+              <p className="mt-1 text-[13px]" style={{ color: R.deep }}>
+                Fixing these issues can improve your ATS score.
+              </p>
             </div>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              Evaluated from resume text — focuses on structure and clarity, not visual layout
-            </p>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Headline summary */}
-      {result.ats_summary && (
-        <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl mb-4"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            style={{ color: 'var(--gold)' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z" />
-          </svg>
-          <div>
-            <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--foreground)' }}>
-              {result.ats_summary}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--dim)' }}>
-              Fixing these issues can improve your ATS score.
-            </p>
-          </div>
-        </div>
-      )}
+        <ul className="divide-y divide-[#E3E6E1]">
+          {nonGood.map((item, i) => (
+            <StatusRow
+              key={i}
+              status={STATUS[item.type] ?? STATUS.warning}
+              title={item.title}
+              body={item.description}
+            />
+          ))}
+          {visibleGood.map((item, i) => (
+            <StatusRow key={`good-${i}`} status={STATUS.good} title={item.title} body={item.description} />
+          ))}
+        </ul>
 
-      {/* Cards grid */}
-      <div className="flex flex-col gap-2.5">
-
-        {/* Errors + warnings */}
-        {nonGood.map((item, i) => {
-          const cfg = ATS_CFG[item.type] ?? ATS_CFG.warning
-          return (
-            <div key={i} className="rounded-xl px-4 py-4 flex items-start gap-3 transition-all"
-              style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}`, boxShadow: cfg.glow }}>
-              <div className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[0.6rem] font-black mt-0.5"
-                style={{ background: cfg.raw + '25', color: cfg.raw, border: `1px solid ${cfg.raw}55` }}>
-                {cfg.icon}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-[0.62rem] font-black tracking-[0.1em] uppercase"
-                    style={{ color: cfg.raw }}>{cfg.label}</span>
-                  <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{item.title}</span>
-                </div>
-                <p className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                  {item.description}
-                </p>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Good items (max 2, rest collapsed) */}
-        {visibleGood.map((item, i) => {
-          const cfg = ATS_CFG.good
-          return (
-            <div key={`good-${i}`} className="rounded-xl px-4 py-3.5 flex items-start gap-3"
-              style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-              <div className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[0.6rem] font-black mt-0.5"
-                style={{ background: cfg.raw + '20', color: cfg.raw }}>
-                {cfg.icon}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="text-[0.62rem] font-black tracking-[0.1em] uppercase"
-                    style={{ color: cfg.raw }}>{cfg.label}</span>
-                  <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{item.title}</span>
-                </div>
-                <p className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                  {item.description}
-                </p>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Show more / less toggle for good items */}
         {goodItems.length > 2 && (
           <button
+            type="button"
             onClick={() => setShowAllGood(v => !v)}
-            className="text-xs font-semibold text-left px-2 py-1 transition-colors w-fit"
-            style={{ color: 'var(--success)' }}>
+            aria-expanded={showAllGood}
+            className="no-print mt-4 inline-flex h-8 items-center rounded-full px-3 text-[13px] font-medium transition-colors hover:bg-[#F4F6F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D0F0E]"
+            style={{ color: R.deep, boxShadow: `inset 0 0 0 1px ${LINE}` }}
+          >
             {showAllGood
-              ? '↑ Show fewer strengths'
-              : `+ ${hiddenGoodCount} more strength${hiddenGoodCount > 1 ? 's' : ''}`}
+              ? 'Show fewer strengths'
+              : `Show ${hiddenGoodCount} more strength${hiddenGoodCount > 1 ? 's' : ''}`}
           </button>
         )}
+      </Surface>
+    </section>
+  )
+}
+
+/* ─── Keyword chip ─── */
+const chipBase = 'inline-flex h-7 max-w-[190px] items-center rounded-full px-2.5 text-[13px] font-medium'
+
+function KeywordColumn({ title, count, tone, children }) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-[15px] font-medium" style={{ color: INK }}>{title}</h3>
+        <span
+          className="inline-flex h-5 items-center rounded-full px-2 text-[12px] font-medium tabular-nums"
+          style={tone}
+        >
+          {count}
+        </span>
       </div>
+      {children}
     </div>
   )
 }
@@ -320,213 +376,198 @@ export default function AnalysisResults({ result, previousResult, comparisonSumm
 
   const matched = result.keywords?.matched ?? []
   const missing = result.keywords?.missing ?? []
-  const delta   = previousResult != null ? result.score - previousResult.score : null
+  const delta = previousResult != null ? result.score - previousResult.score : null
+
+  const changeTone = delta > 0
+    ? { color: SUCCESS, ink: INK_SUCCESS, Icon: ArrowUp }
+    : delta < 0
+    ? { color: DANGER, ink: INK_DANGER, Icon: ArrowDown }
+    : { color: MUTED, ink: MUTED, Icon: Minus }
 
   return (
-    <div className="flex flex-col gap-8" style={{ position: 'relative' }}>
+    <div className="relative flex flex-col gap-8">
 
-      {/* ── Inline re-analyzing overlay ── */}
+      {/* Inline re-analyzing overlay */}
       {reanalyzing && (
-        <div className="absolute inset-0 z-20 rounded-xl flex items-start justify-center pt-24 pointer-events-none"
-          style={{ background: 'rgba(13,13,17,0.6)', backdropFilter: 'blur(2px)' }}>
-          <div className="flex items-center gap-3 px-5 py-3 rounded-xl"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-            <svg className="spin shrink-0 w-4 h-4" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="var(--surface-3)" strokeWidth="3" />
-              <circle cx="12" cy="12" r="9" stroke="var(--gold)" strokeWidth="3"
-                strokeDasharray="14 42" strokeLinecap="round" />
-            </svg>
-            <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+        <div
+          className="no-print pointer-events-none absolute inset-0 z-20 flex items-start justify-center rounded-[18px] pt-24"
+          style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            role="status"
+            className="flex items-center gap-3 rounded-full bg-white px-5 py-3"
+            style={{ boxShadow: '0 0 0 1px rgba(13,15,14,0.06), 0 16px 36px -14px rgba(13,15,14,0.22)' }}
+          >
+            <LoaderCircle aria-hidden="true" className="spin size-4 shrink-0" style={{ color: R.strong }} />
+            <span className="text-[14px] font-medium" style={{ color: INK }}>
               Re-analyzing your resume…
             </span>
           </div>
         </div>
       )}
 
-      {/* ── What Changed — shown after re-analysis ── */}
+      {/* What changed, shown after re-analysis */}
       {comparisonSummary && (
-        <div className="flex items-start gap-3 px-5 py-4 rounded-xl anim-fade-up"
-          style={{
-            background: delta > 0 ? 'rgba(74,222,128,0.06)' : delta < 0 ? 'rgba(248,113,113,0.06)' : 'var(--surface-2)',
-            border: `1px solid ${delta > 0 ? 'rgba(74,222,128,0.2)' : delta < 0 ? 'rgba(248,113,113,0.2)' : 'var(--border)'}`,
-          }}>
-          {/* Icon */}
-          <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center mt-0.5"
-            style={{ background: delta > 0 ? 'rgba(74,222,128,0.15)' : delta < 0 ? 'rgba(248,113,113,0.15)' : 'var(--surface-3)' }}>
-            {delta > 0
-              ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 10V3M3 6l3.5-3.5L10 6" stroke="var(--success)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              : delta < 0
-              ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 3v7M3 7l3.5 3.5L10 7" stroke="var(--danger)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5h9" stroke="var(--dim)" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            }
-          </div>
+        <Surface className="anim-fade-up flex items-start gap-3 p-4 sm:p-5">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-[10px]"
+            style={{ background: changeTone.color === MUTED ? MIST : alpha(changeTone.color, 0.13), color: changeTone.ink }}
+          >
+            <changeTone.Icon className="size-4" />
+          </span>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider mb-1"
-              style={{ color: delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--danger)' : 'var(--dim)' }}>
-              What Changed
+            <p className="text-[14px] font-medium" style={{ color: INK }}>
+              What changed
             </p>
-            <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--foreground)' }}>
+            <p
+              className="mt-1.5 break-words border-l-2 pl-3 text-[14.5px] leading-[1.6]"
+              style={{ borderColor: changeTone.color === MUTED ? LINE : changeTone.color, color: TEXT }}
+            >
               {comparisonSummary}
             </p>
           </div>
-        </div>
+        </Surface>
       )}
 
-      {/* ── Export toolbar ── */}
+      {/* Export toolbar */}
       <ExportToolbar result={result} />
 
-      {/* ══ 1. SCORE + KEYWORDS ══ */}
-      <Card className="border-border/70 overflow-hidden">
-        <CardContent className="p-0">
-          <div className="flex flex-row divide-x divide-border/50">
+      {/* 1. Score and keywords */}
+      <Surface className="grid md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="flex items-center p-4 sm:p-6">
+          {/* Keyed to score so it re-animates on change */}
+          <ScoreRing key={result.score} score={result.score} delta={delta} />
+        </div>
 
-            {/* Score ring — keyed to score so it re-animates on change */}
-            <div className="flex items-center justify-center px-8 py-7 lg:w-72 shrink-0">
-              <ScoreRing key={result.score} score={result.score} delta={delta} />
-            </div>
-
-            {/* Keywords */}
-            <div className="flex flex-1 divide-x divide-border/50 min-w-0">
-
-              {/* Matched */}
-              <div className="flex-1 p-5 min-w-0">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[0.72rem] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--muted-foreground)' }}>
-                    Matched
-                  </p>
-                  <Badge variant="outline" className="text-[0.68rem] font-bold rounded-full"
-                    style={{ color: 'var(--success)', background: 'rgba(74,222,128,0.1)', borderColor: 'rgba(74,222,128,0.25)' }}>
-                    {matched.length}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {matched.map((kw, i) => {
-                    const isNew    = previousResult && !(previousResult.keywords?.matched ?? []).includes(kw)
-                    const label    = isNew ? `✦ ${kw}` : kw
-                    const truncated = label.length > 32 ? label.slice(0, 30) + '…' : label
-                    return (
-                      <span key={kw} className="anim-chip" style={{ animationDelay: `${i * 30}ms` }}>
-                        <Badge variant="outline"
-                          title={kw}
-                          className="text-[0.7rem] font-medium rounded-full cursor-default max-w-[190px]"
-                          style={isNew
-                            ? { color: 'var(--success)', background: 'rgba(74,222,128,0.18)', borderColor: 'rgba(74,222,128,0.4)', fontWeight: 700 }
-                            : { color: 'var(--success)', background: 'rgba(74,222,128,0.08)', borderColor: 'rgba(74,222,128,0.18)' }}>
-                          <span className="truncate block">{truncated}</span>
-                        </Badge>
+        <div
+          className="grid gap-6 border-t p-4 sm:grid-cols-2 sm:p-6 md:border-l md:border-t-0"
+          style={{ borderColor: LINE }}
+        >
+          {/* Matched */}
+          <KeywordColumn
+            title="Matched keywords"
+            count={matched.length}
+            tone={{ background: alpha(SUCCESS, 0.13), color: INK_SUCCESS }}
+          >
+            {matched.length === 0 ? (
+              <p className="text-[13.5px]" style={{ color: MUTED }}>None yet</p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {matched.map((kw, i) => {
+                  const isNew = previousResult && !(previousResult.keywords?.matched ?? []).includes(kw)
+                  const truncated = kw.length > 32 ? kw.slice(0, 30) + '…' : kw
+                  return (
+                    <li key={kw} className="anim-chip" style={{ animationDelay: `${i * 30}ms` }}>
+                      <span
+                        title={isNew ? `${kw} (newly matched)` : kw}
+                        className={chipBase}
+                        style={isNew
+                          ? { background: R.tint, color: R.deep, boxShadow: `inset 0 0 0 1.5px ${R.strong}` }
+                          : { background: R.tint, color: R.deep }}
+                      >
+                        {isNew && (
+                          <span aria-hidden="true" className="mr-1.5 size-1.5 shrink-0 rounded-full" style={{ background: R.strong }} />
+                        )}
+                        <span className="truncate">{truncated}</span>
+                        {isNew && <span className="sr-only"> (new)</span>}
                       </span>
-                    )
-                  })}
-                </div>
-              </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </KeywordColumn>
 
-              {/* Missing */}
-              <div className="flex-1 p-5 min-w-0">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[0.72rem] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--muted-foreground)' }}>
-                    Missing
-                  </p>
-                  <Badge variant="outline" className="text-[0.68rem] font-bold rounded-full"
-                    style={{ color: 'var(--danger)', background: 'rgba(248,113,113,0.1)', borderColor: 'rgba(248,113,113,0.25)' }}>
-                    {missing.length}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {missing.map((kw, i) => {
-                    const truncated = kw.length > 32 ? kw.slice(0, 30) + '…' : kw
-                    return (
-                      <span key={kw} className="anim-chip" style={{ animationDelay: `${i * 30}ms` }}>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="outline"
-                              className="text-[0.7rem] font-medium rounded-full cursor-default max-w-[190px]"
-                              style={{ color: 'var(--danger)', background: 'rgba(248,113,113,0.08)', borderColor: 'rgba(248,113,113,0.18)' }}>
-                              <span className="truncate block">{truncated}</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs border-border"
-                            style={{ background: 'var(--card)', color: 'var(--foreground)', maxWidth: '240px' }}>
-                            Add &quot;{kw}&quot; to your resume
-                          </TooltipContent>
-                        </Tooltip>
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
+          {/* Missing */}
+          <KeywordColumn
+            title="Missing keywords"
+            count={missing.length}
+            tone={{ background: MISSING_BG, color: INK_DANGER }}
+          >
+            {missing.length === 0 ? (
+              <p className="text-[13.5px]" style={{ color: MUTED }}>Nothing missing</p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {missing.map((kw, i) => {
+                  const truncated = kw.length > 32 ? kw.slice(0, 30) + '…' : kw
+                  return (
+                    <li key={kw} className="anim-chip" style={{ animationDelay: `${i * 30}ms` }}>
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label={`${kw}, missing from your resume`}
+                          className={cn(chipBase, 'cursor-default border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B42318] focus-visible:ring-offset-1')}
+                          style={{ background: MISSING_BG, color: INK_DANGER }}
+                        >
+                          <span className="truncate">{truncated}</span>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          className="rounded-[8px] text-[12.5px]"
+                          style={{ background: INK, color: '#FFFFFF', maxWidth: '240px' }}
+                        >
+                          Add &quot;{kw}&quot; to your resume
+                        </TooltipContent>
+                      </Tooltip>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </KeywordColumn>
+        </div>
+      </Surface>
 
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ══ 2. ATS COMPATIBILITY CHECK ══ */}
+      {/* 2. ATS structure */}
       <AtsSection result={result} />
 
-      {/* ══ 4. REWRITES ══ */}
+      {/* 3. Rewrites */}
       {result.rewrites?.length > 0 && (
-        <div>
-          <SectionTitle count={result.rewrites.length} countColor="var(--success)"
-            sub="Copy and paste these directly into your resume">
-            Suggested Rewrites
+        <section>
+          <SectionTitle count={result.rewrites.length} sub="Copy these straight into your resume.">
+            Bullet rewrites
           </SectionTitle>
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
             {result.rewrites.map((rw, i) => (
-              <Card key={i} className="border-border/70 overflow-hidden">
-                <div className="flex flex-row divide-x divide-border/40">
-                  <div className="flex-1 px-5 py-5 min-w-0" style={{ background: 'rgba(248,113,113,0.04)' }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[0.62rem] font-black tracking-[0.12em] uppercase" style={{ color: 'var(--danger)' }}>Before</span>
-                      <div className="flex-1 h-px" style={{ background: 'rgba(248,113,113,0.14)' }} />
-                    </div>
-                    <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                      {stripMarkdown(rw.original)}
-                    </p>
-                  </div>
-                  <div className="flex-1 px-5 py-5 min-w-0 flex flex-col" style={{ background: 'rgba(74,222,128,0.05)' }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[0.62rem] font-black tracking-[0.12em] uppercase" style={{ color: 'var(--success)' }}>After</span>
-                      <div className="flex-1 h-px" style={{ background: 'rgba(74,222,128,0.14)' }} />
-                      <CopyButton text={stripMarkdown(rw.rewritten)} />
-                    </div>
-                    <p className="text-[0.9375rem] leading-relaxed font-medium flex-1" style={{ color: 'var(--foreground)' }}>
-                      {stripMarkdown(rw.rewritten)}
-                    </p>
-                  </div>
+              <Surface key={i} className="grid gap-3 p-4 sm:p-5 md:grid-cols-2">
+                <div className="min-w-0 rounded-[12px] border p-4" style={{ borderColor: LINE }}>
+                  <p className="text-[12.5px] font-medium" style={{ color: MUTED }}>Your bullet</p>
+                  <p className="mt-2 text-[14.5px] leading-[1.6]" style={{ color: TEXT }}>
+                    {stripMarkdown(rw.original)}
+                  </p>
                 </div>
-              </Card>
+                <div
+                  className="flex min-w-0 flex-col rounded-[12px] border p-4"
+                  style={{ borderColor: alpha(R.strong, 0.25), background: alpha(R.strong, 0.07) }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12.5px] font-medium" style={{ color: R.deep }}>Suggested rewrite</p>
+                    <CopyButton text={stripMarkdown(rw.rewritten)} />
+                  </div>
+                  <p className="mt-2 flex-1 text-[14.5px] leading-[1.6]" style={{ color: INK }}>
+                    {stripMarkdown(rw.rewritten)}
+                  </p>
+                </div>
+              </Surface>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* ══ 5. INSIGHTS ══ */}
+      {/* 4. Insights */}
       {result.insights?.length > 0 && (
-        <div>
-          <SectionTitle count={result.insights.length} countColor="var(--gold)">
+        <section>
+          <SectionTitle count={result.insights.length}>
             Insights
           </SectionTitle>
-          <div className="flex flex-col gap-3">
-            {result.insights.map((ins, i) => {
-              const s = SEV[ins.severity] ?? SEV.ok
-              return (
-                <div key={i} className="rounded-r-xl overflow-hidden"
-                  style={{ borderLeft: `3px solid ${s.raw}`, background: s.bg }}>
-                  <div className="px-5 py-4">
-                    <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-                      <Badge variant="outline" className="text-[0.62rem] font-black tracking-[0.1em] uppercase rounded-full"
-                        style={{ color: s.color, background: s.raw + '1a', borderColor: s.raw + '35' }}>
-                        {s.label}
-                      </Badge>
-                      <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{ins.title}</span>
-                    </div>
-                    <p className="text-[0.84rem] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{ins.body}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+          <Surface className="p-4 sm:p-6">
+            <ul className="divide-y divide-[#E3E6E1]">
+              {result.insights.map((ins, i) => (
+                <StatusRow key={i} status={SEV[ins.severity] ?? SEV.ok} title={ins.title} body={ins.body} />
+              ))}
+            </ul>
+          </Surface>
+        </section>
       )}
 
     </div>

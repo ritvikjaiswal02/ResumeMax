@@ -53,6 +53,16 @@ export default function HomeNavbar() {
                 style={{ color: 'var(--muted-foreground)' }}>
                 Dashboard
               </Link>
+              <Link href="/history"
+                className="text-sm font-medium transition-colors hover:opacity-80"
+                style={{ color: 'var(--muted-foreground)' }}>
+                History
+              </Link>
+              <Link href="/portfolio"
+                className="text-sm font-medium transition-colors hover:opacity-80"
+                style={{ color: 'var(--muted-foreground)' }}>
+                Portfolio
+              </Link>
               <div ref={avatarRef} className="relative">
                 <button
                   onClick={() => setAvatarOpen(o => !o)}

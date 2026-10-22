@@ -1,83 +1,195 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useId } from 'react'
 import Link from 'next/link'
 import Script from 'next/script'
 import { useRouter } from 'next/navigation'
+import { Check } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getUsage } from '@/lib/api'
-import Reveal from '@/components/Reveal'
+import AppNav from '@/components/landing/AppNav'
+import FaqSection from '@/components/landing/sections/FaqSection'
+import { Surface, PrimaryButton, ToolTag } from '@/components/landing/primitives'
+import { INK, LINE, MIST, MUTED, TEXT, TOOLS } from '@/components/landing/tokens'
+import { cn } from '@/lib/utils'
 
 const PASSES = [
   {
     id: 'sprint',
-    duration: '30 DAYS ACCESS',
+    days: 30,
+    amount: 99,
+    duration: '30 days of access',
     name: '1-Month Sprint',
     price: '₹99',
     highlight: false,
-    features: [
-      'Unlimited AI Bullet Rewrites',
-      'PDF Cover Letter Generator',
-      'Cold Outreach Generator',
-      'Interview Prep (STAR Method)',
-    ],
+    blurb: 'One focused month of job hunting.',
   },
   {
     id: 'season',
-    duration: '90 DAYS ACCESS',
+    days: 90,
+    amount: 249,
+    duration: '90 days of access',
     name: 'Placement Season',
     price: '₹249',
     highlight: true,
-    features: [
-      'Everything in the ₹99 plan',
-      '90 full days of access',
-      'Best value for the placement rush',
-    ],
+    blurb: 'Covers a full placement season, start to offer.',
   },
   {
     id: 'grind',
-    duration: '180 DAYS ACCESS',
+    days: 180,
+    amount: 499,
+    duration: '180 days of access',
     name: 'Off-Campus Grind',
     price: '₹499',
     highlight: false,
-    features: [
-      'Everything in the ₹249 plan',
-      '180 full days of access',
-      'Perfect for off-campus hunting',
-    ],
+    blurb: 'Six months for a longer off-campus search.',
   },
 ]
+const DEFAULT_PASS = 1 // 90 days
+
+// Every pass has the same tools; only the length changes.
+const PRO_FEATURES = [
+  { tool: null, label: 'Unlimited resume checks and bullet rewrites' },
+  { tool: 'cover', label: 'Cover letters you can download as PDF' },
+  { tool: 'outreach', label: 'Cold emails and LinkedIn DMs' },
+  { tool: 'interview', label: 'Interview questions from your own resume' },
+  { tool: 'portfolio', label: 'GitHub and portfolio review' },
+]
+
+const titleStyle = { color: INK, letterSpacing: '-0.02em' }
+
+function Price({ amount }) {
+  return (
+    <span
+      className="whitespace-nowrap font-medium tabular-nums"
+      style={{ color: INK, fontSize: 'clamp(44px, 6vw, 60px)', lineHeight: 1, letterSpacing: '-0.04em' }}
+    >
+      <span style={{ fontSize: '0.46em', verticalAlign: '0.75em', letterSpacing: 0, marginRight: '0.08em' }}>₹</span>
+      {amount}
+    </span>
+  )
+}
+
+function Feature({ tool, children }) {
+  return (
+    <li className="flex gap-3 text-[15px] leading-[1.5]" style={{ color: TEXT }}>
+      <span aria-hidden className="flex h-[22.5px] w-4 shrink-0 items-center justify-center">
+        {tool
+          ? <span className="size-2.5 rounded-full" style={{ background: TOOLS[tool].strong }} />
+          : <Check className="size-4" strokeWidth={2.25} style={{ color: INK }} />}
+      </span>
+      <span>{children}</span>
+    </li>
+  )
+}
+
+function PassPicker({ value, onChange, name, disabled }) {
+  return (
+    <fieldset className="w-full min-w-0 sm:w-[300px]" disabled={disabled}>
+      <legend className="sr-only">Pass length</legend>
+      <div className="relative grid h-11 grid-cols-3 rounded-full p-1" style={{ background: '#F1F3EF' }}>
+        <span
+          aria-hidden
+          className="absolute bottom-1 left-1 top-1 rounded-full bg-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+          style={{
+            width: 'calc((100% - 8px) / 3)',
+            transform: `translateX(${value * 100}%)`,
+            boxShadow: '0 0 0 1px rgba(13,15,14,0.06), 0 1px 2px rgba(13,15,14,0.08), 0 2px 6px -2px rgba(13,15,14,0.12)',
+          }}
+        />
+        {PASSES.map((p, i) => {
+          const checked = i === value
+          return (
+            <label
+              key={p.id}
+              className={cn(
+                'relative flex cursor-pointer select-none items-center justify-center rounded-full px-2 text-[14px] font-medium transition-colors',
+                'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#0D0F0E]',
+                checked ? 'text-[#0D0F0E]' : 'text-[#646A66] hover:text-[#0D0F0E]'
+              )}
+            >
+              <input
+                type="radio"
+                name={name}
+                value={p.id}
+                checked={checked}
+                onChange={() => onChange(i)}
+                className="sr-only"
+              />
+              {p.days} days
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
+  )
+}
+
+const MONTHS = 6
+const fmt = (d, opts) => d.toLocaleDateString('en-GB', opts)
+
+function PassTimeline({ days }) {
+  const [today, setToday] = useState(null)
+  useEffect(() => setToday(new Date()), [])
+  const filled = Math.round(days / 30)
+  const months = Array.from({ length: MONTHS }, (_, i) =>
+    today ? fmt(new Date(today.getFullYear(), today.getMonth() + i, 1), { month: 'short' }) : ''
+  )
+  const end = today ? new Date(today.getTime() + days * 86400000) : null
+  const deep = TOOLS.resume.deep
+
+  return (
+    <div className="rounded-[16px] p-5" style={{ background: TOOLS.resume.tint }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[14px] font-medium" style={{ color: deep }}>Your pass</p>
+        <p className="text-[13px]" style={{ color: deep }}>{days} days</p>
+      </div>
+      <div className="mt-4 grid grid-cols-6 gap-1.5" aria-hidden>
+        {months.map((m, i) => (
+          <div key={i}>
+            <div
+              className="h-2.5 rounded-full transition-colors duration-300"
+              style={{ background: i < filled ? TOOLS.resume.strong : 'rgba(6,95,59,0.14)' }}
+            />
+            <p className="mt-1.5 text-[11.5px]" style={{ color: deep, opacity: i < filled ? 1 : 0.55 }}>{m || ' '}</p>
+          </div>
+        ))}
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-[13.5px]" style={{ borderColor: 'rgba(6,95,59,0.15)' }}>
+        <div>
+          <dt style={{ color: deep, opacity: 0.75 }}>Starts</dt>
+          <dd className="mt-0.5 font-medium" style={{ color: deep }}>When you pay</dd>
+        </div>
+        <div>
+          <dt style={{ color: deep, opacity: 0.75 }}>Ends</dt>
+          <dd className="mt-0.5 font-medium" style={{ color: deep }}>
+            {end ? fmt(end, { day: 'numeric', month: 'short', year: 'numeric' }) : ' '}
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-[12.5px] leading-[1.5]" style={{ color: deep, opacity: 0.8 }}>
+        No auto-renew. It simply ends, and your free checks carry on.
+      </p>
+    </div>
+  )
+}
 
 export default function PricingPage() {
   const { user, session, loading, signOut } = useAuth()
   const router = useRouter()
   const [activeLoading, setActiveLoading] = useState(null)
-  const [avatarOpen, setAvatarOpen] = useState(false)
-  const avatarRef = useRef(null)
+  const [isPro, setIsPro]                 = useState(false)
+  const [successPlan, setSuccessPlan]     = useState(null)
+  const [usage, setUsage]                 = useState(null)
+  const [index, setIndex]                 = useState(DEFAULT_PASS)
+  const groupName = useId()
 
-  useEffect(() => {
-    if (!avatarOpen) return
-    const handler = (e) => { if (avatarRef.current && !avatarRef.current.contains(e.target)) setAvatarOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [avatarOpen])
-  const [isPro, setIsPro]                     = useState(false)
-  const [successPlan, setSuccessPlan]         = useState(null)
-  const [referralCode, setReferralCode]       = useState(null)
-  const [referralCopied, setReferralCopied]   = useState(false)
   useEffect(() => {
     if (!session?.access_token) return
     getUsage(session.access_token).then(d => {
+      if (d) setUsage(d)
       if (d?.plan === 'pro') setIsPro(true)
-      if (d?.referral_code) setReferralCode(d.referral_code)
     }).catch(() => {})
   }, [session])
-
-  const copyReferral = () => {
-    if (!referralCode) return
-    navigator.clipboard.writeText(`https://resumemax.in?ref=${referralCode}`)
-    setReferralCopied(true)
-    setTimeout(() => setReferralCopied(false), 2000)
-  }
 
   const handleBuy = async (planId) => {
     if (!session) { router.push('/login'); return }
@@ -114,244 +226,148 @@ export default function PricingPage() {
     } catch { setActiveLoading(null) }
   }
 
+  const pass      = PASSES[index]
+  const daily     = (pass.amount / pass.days).toFixed(2)
+  const isActive  = isPro || successPlan === pass.id
+  const isLoading = activeLoading === pass.id
+  const boughtPass = PASSES.find(p => p.id === successPlan)
+  const navUsage  = usage ? (isPro ? { ...usage, plan: 'pro' } : usage) : (isPro ? { plan: 'pro' } : null)
+
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen selection:bg-primary selection:text-on-primary">
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <div className="rmx min-h-screen bg-white">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      {/* ── Background blobs (exact match to reference) ── */}
-      <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-tertiary-container/5 blur-[100px]" />
-      </div>
+      <AppNav active="pricing" user={user} usage={navUsage} onSignOut={signOut} loading={loading} />
 
-      {/* ── Navbar ── */}
-      <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-surface-container-low">
-        <Link href="/" className="no-underline">
-          <span className="font-headline text-xl font-bold tracking-tighter" style={{ color: 'var(--foreground)' }}>Resume<span style={{ color: 'var(--gold)' }}>Max</span></span>
-        </Link>
-        <div className="hidden md:flex items-center gap-8 font-label text-sm">
-          <Link href="/"         className="text-on-surface-variant hover:text-on-surface transition-colors no-underline">Home</Link>
-          <Link href="/pricing"  className="text-primary border-b-2 border-primary pb-0.5 no-underline">Pricing</Link>
-        </div>
-        <div className="flex items-center gap-4">
-          {user ? (
-            <div ref={avatarRef} className="relative">
-              <button
-                onClick={() => setAvatarOpen(o => !o)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black"
-                style={{ background: 'var(--gold)', color: '#0d0d11' }}>
-                {user.email?.[0]?.toUpperCase() ?? '?'}
-              </button>
-              {avatarOpen && (
-                <div className="absolute right-0 top-10 w-52 rounded-xl shadow-2xl z-50 overflow-hidden"
-                  style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-                  <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--foreground)' }}>{user.email}</p>
-                    <p className="text-[0.7rem] mt-0.5" style={{ color: 'var(--dim)' }}>{isPro ? '✦ Pro Plan' : 'Free Plan'}</p>
-                  </div>
-                  <Link href="/analyze" onClick={() => setAvatarOpen(false)}
-                    className="flex items-center px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 no-underline"
-                    style={{ color: 'var(--muted-foreground)' }}>
-                    Dashboard
-                  </Link>
-                  {referralCode && (
-                    <button
-                      onClick={copyReferral}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
-                      style={{ color: 'var(--gold)' }}>
-                      {referralCopied ? '✓ Link copied!' : '🎁 Refer & Earn +2 analyses'}
-                    </button>
-                  )}
-                  <button onClick={() => { setAvatarOpen(false); signOut() }}
-                    className="w-full flex items-center px-4 py-2.5 text-xs font-medium transition-colors hover:bg-white/5 text-left"
-                    style={{ color: 'var(--danger)' }}>
-                    Sign out
-                  </button>
-                </div>
-              )}
+      <main className="mx-auto max-w-[1080px] px-4 pb-20 pt-12 sm:px-8 sm:pt-16">
+        <section aria-labelledby="pricing-title">
+          <div className="max-w-[720px]">
+            <h1
+              id="pricing-title"
+              className="font-medium"
+              style={{ color: INK, fontSize: 'clamp(32px, 4.6vw, 54px)', lineHeight: 1.04, letterSpacing: '-0.035em', textWrap: 'balance' }}
+            >
+              Pick your Pro Pass
+            </h1>
+            <p className="mt-5 max-w-[580px] text-[17px] leading-[1.6]" style={{ color: MUTED }}>
+              One payment unlocks unlimited checks and the four Pro tools for 30, 90 or 180 days. Your 5 free checks a
+              month stay either way.
+            </p>
+          </div>
+
+          {successPlan && (
+            <div
+              role="status"
+              className="mt-8 flex items-start gap-3 rounded-[16px] px-5 py-4 text-[15px] leading-[1.5]"
+              style={{ background: TOOLS.resume.tint, color: TOOLS.resume.deep }}
+            >
+              <Check className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} aria-hidden />
+              <span>
+                Payment received. Your {boughtPass?.name} pass is active.{' '}
+                <Link href="/analyze" className="font-medium underline underline-offset-2">Go to your dashboard</Link>
+              </span>
             </div>
-          ) : (
-            <Link href="/login"
-              className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-5 py-2 rounded-xl font-bold text-sm tracking-tight hover:opacity-90 transition-all duration-150 no-underline">
-              Sign In
-            </Link>
           )}
-        </div>
-      </nav>
 
-      {/* ── Main ── */}
-      <main className="pt-32 pb-24 px-6 max-w-7xl mx-auto min-h-screen">
+          <div className="mt-10 flex flex-col rounded-[28px] p-1.5 sm:mt-12 sm:p-2" style={{ background: MIST }}>
+            <Surface className="flex-1 rounded-[20px] p-5 sm:p-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-[20px] font-medium" style={titleStyle}>Pro Pass</h2>
+                <PassPicker value={index} onChange={setIndex} name={groupName} disabled={activeLoading !== null} />
+              </div>
 
-        {/* ── Hero ── */}
-        <section className="text-center mb-20">
-          <h1 className="font-headline text-5xl md:text-7xl font-extrabold tracking-tighter text-on-surface mb-6">
-            Pick Your Plan
-          </h1>
-          <p className="text-on-surface-variant text-lg md:text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            Start free. Upgrade when you're ready. Empower your career with
-            AI-driven resume tools built for job seekers.
-          </p>
-        </section>
-
-        {/* ── Pricing Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center md:items-center">
-
-          {PASSES.map((pass, index) => {
-            const isActive  = isPro || successPlan === pass.id
-            const isLoading = activeLoading === pass.id
-
-            if (pass.highlight) {
-              return (
-                <Reveal key={pass.id} delay={index * 0.2}>
-                <div
-                  className="relative glass-card rounded-2xl border-2 border-primary amber-glow flex flex-col md:scale-105 z-10 shadow-2xl overflow-hidden min-h-[680px]"
-                >
-                  {/* Top amber shimmer line */}
-                  <div className="h-1 w-full bg-gradient-to-r from-primary/0 via-primary to-primary/0" />
-
-                  <div className="px-10 pt-10 pb-10 flex flex-col flex-grow">
-                    {/* Floating badge */}
-                    <div className="self-start mb-5 bg-primary/15 border border-primary/30 text-primary text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase">
-                      MOST POPULAR
-                    </div>
-
-                    <h3 className="font-headline text-3xl font-extrabold text-on-surface mb-1 tracking-tight">
+              <div className="mt-7 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start md:gap-10">
+                <div>
+                  <div className="flex min-h-7 flex-wrap items-center gap-2.5">
+                    <span className="text-[18px] font-medium" style={{ color: INK, letterSpacing: '-0.015em' }}>
                       {pass.name}
-                    </h3>
-                    <p className="text-on-surface-variant/60 text-sm mb-6">Full placement season coverage</p>
-
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="font-headline text-6xl font-extrabold text-on-surface tracking-tighter leading-none">
-                        {pass.price}
+                    </span>
+                    {pass.highlight && (
+                      <span className="inline-flex h-[22px] items-center rounded-full bg-[#0D0F0E] px-2.5 text-[12px] font-medium text-white">
+                        Best value
                       </span>
-                    </div>
-                    <p className="text-on-surface-variant text-sm mb-1">One-time payment</p>
-                    <p className="text-primary text-xs font-black uppercase tracking-widest mb-8">
-                      {pass.duration}
-                    </p>
-
-                    {/* Divider */}
-                    <div className="h-px bg-primary/15 mb-8" />
-
-                    <ul className="space-y-5 flex-grow mb-10">
-                      {pass.features.map(f => (
-                        <li key={f} className="flex items-center gap-4 text-[15px] text-on-surface">
-                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary/15 border border-secondary/20 flex items-center justify-center">
-                            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="#4edea3" strokeWidth="3">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </span>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-
-                    {isActive ? (
-                      <div className="w-full py-5 rounded-xl bg-primary/10 border border-primary/25 text-primary font-bold text-center text-base">
-                        ✓ Active
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleBuy(pass.id)}
-                        disabled={activeLoading !== null || loading}
-                        className="w-full py-5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-black text-lg shadow-lg hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isLoading ? 'Opening payment…' : 'Get Started'}
-                      </button>
                     )}
                   </div>
-                </div>
-                </Reveal>
-              )
-            }
+                  <p className="mt-1 text-[14.5px] leading-[1.5]" style={{ color: MUTED }}>{pass.blurb}</p>
 
-            // Side cards
-            return (
-              <Reveal key={pass.id} delay={index * 0.2}>
-              <div
-                className="glass-card rounded-2xl border border-outline-variant/15 flex flex-col hover:border-outline-variant/35 transition-all duration-300 overflow-hidden min-h-[560px]"
-              >
-                <div className="px-9 pt-10 pb-10 flex flex-col flex-grow">
-                  <h3 className="font-headline text-2xl font-bold text-on-surface mb-1 tracking-tight">
-                    {pass.name}
-                  </h3>
-                  <p className="text-on-surface-variant/50 text-sm mb-6">
-                    {pass.id === 'sprint' ? 'One focused month of job hunting' : 'Extended off-campus grind mode'}
-                  </p>
-
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-headline text-5xl font-extrabold text-on-surface tracking-tighter leading-none">
-                      {pass.price}
-                    </span>
+                  <div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <Price amount={pass.amount} />
+                    <span className="text-[15px]" style={{ color: MUTED }}>for {pass.days} days</span>
                   </div>
-                  <p className="text-on-surface-variant text-sm mb-1">One-time payment</p>
-                  <p className="text-primary text-xs font-black uppercase tracking-widest mb-8">
-                    {pass.duration}
+                  <p className="mt-2 text-[15px] leading-[1.5]" style={{ color: TEXT }}>
+                    One-time payment, about ₹{daily} a day
                   </p>
 
-                  {/* Divider */}
-                  <div className="h-px bg-outline-variant/20 mb-8" />
-
-                  <ul className="space-y-5 flex-grow mb-10">
-                    {pass.features.map(f => (
-                      <li key={f} className="flex items-center gap-4 text-[14px] text-on-surface-variant">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary/10 border border-secondary/15 flex items-center justify-center">
-                          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#4edea3" strokeWidth="2.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="sr-only" aria-live="polite">
+                    {`${pass.name} pass: ${pass.price} for ${pass.days} days, about ₹${daily} a day.`}
+                  </p>
 
                   {isActive ? (
-                    <div className="w-full py-5 rounded-xl bg-primary/10 border border-primary/25 text-primary font-bold text-center text-base">
-                      ✓ Active
+                    <div
+                      className="mt-6 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium sm:w-auto sm:min-w-[272px]"
+                      style={{ background: TOOLS.resume.tint, color: TOOLS.resume.deep }}
+                    >
+                      <Check className="size-4" strokeWidth={2.5} aria-hidden />
+                      Your Pro Pass is active
                     </div>
                   ) : (
-                    <button
+                    <PrimaryButton
+                      type="button"
                       onClick={() => handleBuy(pass.id)}
                       disabled={activeLoading !== null || loading}
-                      className="w-full py-5 rounded-xl border border-outline-variant/30 text-on-surface font-bold text-base hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-busy={isLoading || undefined}
+                      className="mt-6 h-auto min-h-[44px] w-full whitespace-normal px-4 py-2.5 text-center leading-snug disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[272px] sm:px-6"
                     >
-                      {isLoading ? 'Opening payment…' : 'Get Started'}
-                    </button>
+                      {isLoading ? 'Opening payment…' : `Pay ${pass.price} with Razorpay`}
+                    </PrimaryButton>
+                  )}
+                  {!isActive && !loading && !user && (
+                    <p className="mt-3 text-[13.5px]" style={{ color: MUTED }}>
+                      You will be asked to sign in first.
+                    </p>
                   )}
                 </div>
-              </div>
-              </Reveal>
-            )
-          })}
-        </div>
 
-        {/* ── Footnote ── */}
-        <div className="mt-16 text-center">
-          <p className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-surface-container-low border border-outline-variant/10 text-on-surface-variant text-sm font-medium">
-            <span className="text-primary">★</span>
-            1 free Pro use included — try before you pay
-          </p>
+                <PassTimeline days={pass.days} />
+              </div>
+
+              <ul className="mt-8 grid gap-x-6 gap-y-3 border-t pt-6 sm:grid-cols-2" style={{ borderColor: LINE }}>
+                <Feature>Everything in Free</Feature>
+                {PRO_FEATURES.map(({ tool, label }) => (
+                  <Feature key={label} tool={tool}>{label}</Feature>
+                ))}
+              </ul>
+            </Surface>
+
+            <p className="px-5 py-3.5 text-[13.5px] leading-[1.55] sm:px-8 sm:py-4" style={{ color: MUTED }}>
+              One-time payment through Razorpay. No subscription, no auto-renew. Every pass has the same tools; only
+              the length changes.
+            </p>
+          </div>
+
+          <div
+            className="mt-5 flex flex-col gap-3 rounded-[20px] border p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7"
+            style={{ borderColor: LINE }}
+          >
+            <div>
+              <ToolTag tool="resume" />
+              <p className="mt-1.5 text-[15px] leading-[1.5]" style={{ color: TEXT }}>
+                Not ready to pay? You get 5 free resume checks every month, with the full result.
+              </p>
+            </div>
+            <Link
+              href="/analyze"
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-[#D5D9D3] bg-white px-5 text-[15px] font-medium text-[#0D0F0E] transition-colors hover:bg-[#F4F6F2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0D0F0E]"
+            >
+              Start free
+            </Link>
+          </div>
+        </section>
+
+        <div className="mt-20 sm:mt-28">
+          <FaqSection />
         </div>
       </main>
-
-      {/* ── Footer ── */}
-      <footer className="w-full py-8 mt-auto border-t border-outline-variant/15 bg-surface">
-        <div className="flex flex-col md:flex-row justify-between items-center px-8 max-w-7xl mx-auto gap-4">
-          <p className="font-body text-xs text-on-surface-variant">
-            © 2026 ResumeMax · Digital Career Precision.
-          </p>
-          <div className="flex gap-6">
-            {['Privacy Policy', 'Terms of Service', 'API Docs', 'Contact Support'].map(l => (
-              <a key={l} href="#" className="font-body text-xs text-on-surface-variant hover:text-primary transition-colors opacity-80 hover:opacity-100">
-                {l}
-              </a>
-            ))}
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }
